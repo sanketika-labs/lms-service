@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build - Docker Image
 
 on:
     push:
@@ -74,7 +74,8 @@ jobs:
           fi
           
           IMAGE_NAME=${{ env.REGISTRY }}/${REPO_LOWER}
-          IMAGE_TAG=${TAG_LOWER}_${SHORT_SHA}_${GITHUB_RUN_NUMBER}
+          # Use short commit SHA as primary tag
+          IMAGE_TAG=${SHORT_SHA}
           LATEST_TAG=${TAG_LOWER}
           echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
