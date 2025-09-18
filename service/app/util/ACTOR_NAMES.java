@@ -6,6 +6,7 @@ import org.sunbird.enrolments.ContentConsumptionActor;
 import org.sunbird.group.GroupAggregatesActor;
 import org.sunbird.learner.actors.BackgroundJobManager;
 import org.sunbird.learner.actors.PageManagementActor;
+import org.sunbird.learner.actors.activity.ActivityBatchManagementActor;
 import org.sunbird.learner.actors.bulkupload.BulkUploadBackGroundJobActor;
 import org.sunbird.learner.actors.bulkupload.BulkUploadManagementActor;
 import org.sunbird.learner.actors.cache.CacheManagementActor;
@@ -21,6 +22,7 @@ import org.sunbird.learner.actors.syncjobmanager.EsSyncActor;
 import org.sunbird.actor.exhaustjob.ExhaustJobActor;
 
 public enum ACTOR_NAMES {
+  ACTIVITY_BATCH_MANAGEMENT_ACTOR(ActivityBatchManagementActor.class,"activity-batch-management-actor"),
   COURSE_BATCH_MANAGEMENT_ACTOR(CourseBatchManagementActor.class, "course-batch-management-actor"),
   COLLECTION_AGGREGATE_SUMMARY_ACTOR(CollectionSummaryAggregate.class, "collection-summary-aggregate-actor"),
   CACHE_MANAGEMENT_ACTOR(CacheManagementActor.class, "cache-management-actor"),

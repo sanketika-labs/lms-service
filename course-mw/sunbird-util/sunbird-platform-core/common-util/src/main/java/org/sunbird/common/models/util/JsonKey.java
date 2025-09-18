@@ -82,6 +82,7 @@ public final class JsonKey {
   public static final String COURSE = "course";
   public static final String COURSE_ADDITIONAL_INFO = "courseAdditionalInfo";
   public static final String COURSE_BATCH_DB = "courseBatchDB";
+  public static final String ACTIVITY_BATCH_DB = "activityBatchDB";
   public static final String COURSE_CREATED_FOR = "createdFor";
   public static final String COURSE_ENROLL_DATE = "enrolledDate";
   public static final String COURSE_ID = "courseId";
@@ -586,6 +587,7 @@ public final class JsonKey {
   //#Release-5.4.0 - LR-511
   public static final String SUNBIRD_KEYSPACE = "sunbird_userorg_keyspace";
   public static final String SUNBIRD_COURSE_KEYSPACE ="sunbird_course_keyspace";
+  public static final String SB_COLLECTION_TRACKING_KEYSPACE = "sb_collection_tracking_keyspace";
   public static final String DIALCODE_KEYSPACE = "dialcode_keyspace";
   public static final String REDIS_HOST_VALUE = "sunbird_redis_host";
   public static final String REDIS_PORT_VALUE = "sunbird_redis_port";
