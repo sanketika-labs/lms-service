@@ -34,9 +34,18 @@ public class CourseBatchController extends BaseController {
   private ActorRef compositeSearchActorRef;
 
   public CompletionStage<Result> createBatch(Http.Request httpRequest) {
+    return createBatchWrapper(httpRequest, false);
+  }
+
+  public CompletionStage<Result> privateCreateBatch(Http.Request httpRequest) {
+      return createBatchWrapper(httpRequest, true);
+  }
+
+  private CompletionStage<Result> createBatchWrapper(Http.Request httpRequest, boolean idFromRequest) {
+    String operation = idFromRequest ? ActorOperations.PRIVATE_CREATE_BATCH.getValue() : ActorOperations.CREATE_BATCH.getValue();
     return handleRequest(
         courseBatchActorRef,
-        ActorOperations.CREATE_BATCH.getValue(),
+        operation,
         httpRequest.body().asJson(),
         (request) -> {
           Request req = (Request) request;
@@ -47,10 +56,6 @@ public class CourseBatchController extends BaseController {
         },
         getAllRequestHeaders(httpRequest),
         httpRequest);
-  }
-
-  public CompletionStage<Result> privateCreateBatch(Http.Request httpRequest) {
-      return createBatch(httpRequest);
   }
 
   public CompletionStage<Result> getBatch(String batchId, Http.Request httpRequest) {

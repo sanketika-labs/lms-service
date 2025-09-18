@@ -74,7 +74,9 @@ public class CourseBatchManagementActor extends BaseActor {
     String requestedOperation = request.getOperation();
     switch (requestedOperation) {
       case "createBatch":
-        createCourseBatch(request);
+        createCourseBatch(request, false);
+      case "privateCreateBatch":
+        createCourseBatch(request, true);
         break;
       case "updateBatch":
         updateCourseBatch(request);
@@ -91,11 +93,11 @@ public class CourseBatchManagementActor extends BaseActor {
     }
   }
 
-  private void createCourseBatch(Request actorMessage) throws Throwable {
+  private void createCourseBatch(Request actorMessage, boolean idFromRequest) throws Throwable {
     Map<String, Object> request = actorMessage.getRequest();
     Map<String, Object> targetObject;
     List<Map<String, Object>> correlatedObject = new ArrayList<>();
-    String courseBatchId = ProjectUtil.getUniqueIdFromTimestamp(actorMessage.getEnv());
+    String courseBatchId = composeCourseBatchId(actorMessage, idFromRequest);
     Map<String, String> headers =
         (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
     String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
@@ -224,6 +226,16 @@ public class CourseBatchManagementActor extends BaseActor {
     if (courseNotificationActive()) {
       batchOperationNotifier(actorMessage, courseBatch, participantsMap);
     }
+  }
+
+  private String composeCourseBatchId(Request request, boolean fromReq) {
+    String batchId = null;
+    if (fromReq) {
+      batchId = (String) request.get(JsonKey.BATCH_ID);
+    } else {
+      batchId = ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+    }
+    return batchId;
   }
 
   private Map<String, Object> getMentorLists(
