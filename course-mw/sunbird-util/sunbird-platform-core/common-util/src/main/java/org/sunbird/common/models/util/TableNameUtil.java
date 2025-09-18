@@ -10,7 +10,7 @@ public class TableNameUtil {
     public static final String ASSESSMENT_ITEM_TABLENAME="assessment_item";
     public static final String BULK_UPLOAD_PROCESS_TABLENAME="bulk_upload_process";
     public static final String COURSE_BATCH_TABLENAME="course_batch";
-    public static final String ACTIVITY_BATCH_TABLENAME="batch";
+    public static final String ACTIVITY_BATCH_TABLENAME="batches";
     public static final String CLIENT_INFO_TABLENAME="client_info";
     public static final String USER_AUTH_TABLENAME="user_auth";
     public static final String DIALCODE_IMAGES_TABLENAME="dialcode_images";
