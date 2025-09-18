@@ -229,13 +229,7 @@ public class CourseBatchManagementActor extends BaseActor {
   }
 
   private String composeCourseBatchId(Request request, boolean fromReq) {
-    String batchId = null;
-    if (fromReq) {
-      batchId = (String) request.get(JsonKey.BATCH_ID);
-    } else {
-      batchId = ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
-    }
-    return batchId;
+    return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
   }
 
   private Map<String, Object> getMentorLists(

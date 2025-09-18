@@ -19,9 +19,18 @@ public class ActivityBatchController  extends BaseController {
     private akka.actor.ActorRef activityBatchActorRef;
 
     public CompletionStage<Result> createBatch(Http.Request httpRequest) {
+        return createBatchWrapper(httpRequest, false);
+    }
+
+    public CompletionStage<Result> privateCreateBatch(Http.Request httpRequest) {
+        return createBatchWrapper(httpRequest, true);
+    }
+
+    private CompletionStage<Result> createBatchWrapper(Http.Request httpRequest, boolean idFromRequest) {
+        String operation = idFromRequest ? ActorOperations.PRIVATE_CREATE_BATCH.getValue() : ActorOperations.CREATE_BATCH.getValue();
         return handleRequest(
                 activityBatchActorRef,
-                ActorOperations.CREATE_BATCH.getValue(),
+                operation,
                 httpRequest.body().asJson(),
                 (request) -> {
                     Request req = (Request) request;

@@ -44,7 +44,10 @@ public class ActivityBatchManagementActor extends BaseActor {
         String requestedOperation = request.getOperation();
         switch (requestedOperation) {
             case "createBatch":
-                createActivityBatch(request);
+                createActivityBatch(request, false);
+                break;
+            case "privateCreateBatch":
+                createActivityBatch(request, true);
                 break;
             case "updateBatch":
                 updateActivityBatch(request);
@@ -55,11 +58,14 @@ public class ActivityBatchManagementActor extends BaseActor {
         }
     }
 
-    private void createActivityBatch(Request actorMessage) throws Exception {
+    private String composeBatchId(Request request, boolean fromReq) {
+        return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+    }
 
+    private void createActivityBatch(Request actorMessage, boolean idFromRequest) throws Exception {
         Map<String, Object> request = actorMessage.getRequest();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
-        String batchId = ProjectUtil.getUniqueIdFromTimestamp(actorMessage.getEnv());
+        String batchId = composeBatchId(actorMessage, idFromRequest);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get(JsonKey.ACTIVITYTYPE);
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
@@ -262,11 +268,6 @@ public class ActivityBatchManagementActor extends BaseActor {
     }
 
     private void validateUserPermission(ActivityBatch activityBatch, String requestedBy) {
-        // List<String> canUpdateList = new ArrayList<>();
-        // if (StringUtils.isNotBlank(activityBatch.getCreatedBy())) {
-        //     canUpdateList.add(activityBatch.getCreatedBy());
-        // }
-
         String canUpdateBatch = activityBatch.getCreatedBy();
         
         if (ProjectUtil.getConfigValue(JsonKey.AUTH_ENABLED) != null && 

@@ -57,6 +57,7 @@ POST		 /v1/batch/participants/list			@controllers.coursemanagement.CourseBatchCo
 
 # Generic Batch APIs
 POST     /v1/batch/create				        @controllers.activity.ActivityBatchController.createBatch(request: play.mvc.Http.Request)
+POST     /private/v1/batch/create			        @controllers.activity.ActivityBatchController.privateCreateBatch(request: play.mvc.Http.Request)
 PATCH 	 /v1/batch/update				        @controllers.activity.ActivityBatchController.updateBatch(request: play.mvc.Http.Request)
 
 # Certificate APIs
