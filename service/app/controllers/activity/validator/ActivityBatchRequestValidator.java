@@ -34,9 +34,7 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
         String startDate = (String) request.getRequest().get(JsonKey.START_DATE);
         String endDate = (String) request.getRequest().get(JsonKey.END_DATE);
         String enrollmentEndDate = (String) request.getRequest().get(JsonKey.ENROLLMENT_END_DATE);
-        validateStartDate(startDate);
-        validateEndDate(startDate, endDate);
-        validateEnrollmentEndDate(enrollmentEndDate, startDate, endDate);
+        validateDates(startDate, endDate, enrollmentEndDate);
         validateCreatedFor(request);
     }
 
@@ -70,9 +68,7 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
         String startDate = (String) request.getRequest().get(JsonKey.START_DATE);
         String endDate = (String) request.getRequest().get(JsonKey.END_DATE);
         String enrollmentEndDate = (String) request.getRequest().get(JsonKey.ENROLLMENT_END_DATE);
-        validateStartDate(startDate);
-        validateEndDate(startDate, endDate);
-        validateEnrollmentEndDate(enrollmentEndDate, startDate, endDate);
+        validateDates(startDate, endDate, enrollmentEndDate);
 
     }
 
@@ -93,93 +89,72 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
         }
     }
 
-    private void validateStartDate(String startDate) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        format.setLenient(false);
+    private void validateDates(String startDate, String endDate, String enrollmentEndDate) {
+        // Validate that startDate is provided
         validateParam(startDate,
                 ResponseCode.mandatoryParamsMissing,
                 JsonKey.START_DATE);
+
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        format.setLenient(false);
+        
         try {
+            // Parse startDate
             Date batchStartDate = format.parse(startDate);
             Date todayDate = format.parse(format.format(new Date()));
-            Calendar cal1 = Calendar.getInstance();
-            Calendar cal2 = Calendar.getInstance();
-            cal1.setTime(batchStartDate);
-            cal2.setTime(todayDate);
+            
+            // Validate that startDate is today or future
             if (batchStartDate.before(todayDate)) {
                 throw new ProjectCommonException(
                         ResponseCode.courseBatchStartDateError.getErrorCode(),
                         ResponseCode.courseBatchStartDateError.getErrorMessage(),
                         ResponseCode.CLIENT_ERROR.getResponseCode());
             }
+            
+            Date batchEndDate = null;
+            Date batchEnrollmentEndDate = null;
+            
+            // Parse endDate if provided
+            if (StringUtils.isNotEmpty(endDate)) {
+                batchEndDate = format.parse(endDate);
+                
+                // Validate that endDate is after startDate
+                if (batchStartDate.getTime() >= batchEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.endDateError.getErrorCode(),
+                            ResponseCode.endDateError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+            }
+            
+            // Parse and validate enrollmentEndDate if provided
+            if (StringUtils.isNotEmpty(enrollmentEndDate)) {
+                batchEnrollmentEndDate = format.parse(enrollmentEndDate);
+                
+                // Validate that enrollmentEndDate is after startDate
+                if (batchStartDate.getTime() > batchEnrollmentEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.enrollmentEndDateStartError.getErrorCode(),
+                            ResponseCode.enrollmentEndDateStartError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+                
+                // Validate that enrollmentEndDate is before endDate (if endDate is provided)
+                if (StringUtils.isNotEmpty(endDate)
+                        && batchEndDate.getTime() < batchEnrollmentEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.enrollmentEndDateEndError.getErrorCode(),
+                            ResponseCode.enrollmentEndDateEndError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+            }
+            
         } catch (ProjectCommonException e) {
             throw e;
         } catch (Exception e) {
             throw new ProjectCommonException(
                     ResponseCode.dateFormatError.getErrorCode(),
                     ResponseCode.dateFormatError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-    }
-
-    private static void validateEndDate(String startDate, String endDate) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        format.setLenient(false);
-        Date batchEndDate = null;
-        Date batchStartDate = null;
-        try {
-            if (StringUtils.isNotEmpty(endDate)) {
-                batchEndDate = format.parse(endDate);
-                batchStartDate = format.parse(startDate);
-            }
-        } catch (Exception e) {
-            throw new ProjectCommonException(
-                    ResponseCode.dateFormatError.getErrorCode(),
-                    ResponseCode.dateFormatError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-        if (StringUtils.isNotEmpty(endDate) && batchStartDate.getTime() >= batchEndDate.getTime()) {
-            throw new ProjectCommonException(
-                    ResponseCode.endDateError.getErrorCode(),
-                    ResponseCode.endDateError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-    }
-
-    private static void validateEnrollmentEndDate(String enrollmentEndDate, String startDate, String endDate) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        format.setLenient(false);
-        Date batchEndDate = null;
-        Date batchStartDate = null;
-        Date batchenrollmentEndDate = null;
-        try {
-            if (StringUtils.isNotEmpty(enrollmentEndDate)) {
-                batchenrollmentEndDate = format.parse(enrollmentEndDate);
-                batchStartDate = format.parse(startDate);
-            }
-            if (StringUtils.isNotEmpty(endDate)) {
-                batchEndDate = format.parse(endDate);
-            }
-
-        } catch (Exception e) {
-            throw new ProjectCommonException(
-                    ResponseCode.dateFormatError.getErrorCode(),
-                    ResponseCode.dateFormatError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-        if (StringUtils.isNotEmpty(enrollmentEndDate)
-                && batchStartDate.getTime() > batchenrollmentEndDate.getTime()) {
-            throw new ProjectCommonException(
-                    ResponseCode.enrollmentEndDateStartError.getErrorCode(),
-                    ResponseCode.enrollmentEndDateStartError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-        if (StringUtils.isNotEmpty(enrollmentEndDate)
-                && StringUtils.isNotEmpty(endDate)
-                && batchEndDate.getTime() < batchenrollmentEndDate.getTime()) {
-            throw new ProjectCommonException(
-                    ResponseCode.enrollmentEndDateEndError.getErrorCode(),
-                    ResponseCode.enrollmentEndDateEndError.getErrorMessage(),
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         }
     }
