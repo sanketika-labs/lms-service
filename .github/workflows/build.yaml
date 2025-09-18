@@ -4,6 +4,13 @@ on:
     push:
       tags:
         - '*'
+    workflow_dispatch:
+      inputs:
+        tag:
+          description: 'Tag to build and deploy'
+          required: true
+          default: 'latest'
+          type: string
 
 jobs:
   ghcr-build-and-deploy:
@@ -58,7 +65,14 @@ jobs:
         run: |
           REPO_LOWER=$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
           SHORT_SHA=$(git rev-parse HEAD | cut -c1-7)
-          TAG_LOWER=$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]')
+          
+          # Determine tag based on trigger type
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_LOWER=$(echo "${{ github.event.inputs.tag }}" | tr '[:upper:]' '[:lower:]')
+          else
+            TAG_LOWER=$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]')
+          fi
+          
           IMAGE_NAME=${{ env.REGISTRY }}/${REPO_LOWER}
           IMAGE_TAG=${TAG_LOWER}_${SHORT_SHA}_${GITHUB_RUN_NUMBER}
           LATEST_TAG=${TAG_LOWER}
