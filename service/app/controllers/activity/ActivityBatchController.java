@@ -14,6 +14,9 @@ import java.util.concurrent.CompletionStage;
 
 public class ActivityBatchController  extends BaseController {
     
+    // Static final field for cleaner and more efficient access
+    private static final ActivityBatchRequestValidator validator = ActivityBatchRequestValidator.getInstance();
+    
     @Inject
     @Named("activity-batch-management-actor")
     private akka.actor.ActorRef activityBatchActorRef;
@@ -34,7 +37,7 @@ public class ActivityBatchController  extends BaseController {
                 httpRequest.body().asJson(),
                 (request) -> {
                     Request req = (Request) request;
-                    new ActivityBatchRequestValidator().validateCreateActivityBatchRequest(req);
+                    validator.validateCreateActivityBatchRequest(req);
                     return null;
                 },
                 getAllRequestHeaders(httpRequest),
@@ -49,7 +52,7 @@ public class ActivityBatchController  extends BaseController {
                 httpRequest.body().asJson(),
                 (request) -> {
                     Request req = (Request) request;
-                    new ActivityBatchRequestValidator().validateUpdateActivityBatchRequest(req);
+                    validator.validateUpdateActivityBatchRequest(req);
                     return null;
                 },
                 getAllRequestHeaders(httpRequest),
