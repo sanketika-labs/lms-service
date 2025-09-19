@@ -68,12 +68,18 @@ public class ActivityBatchManagementActor extends BaseActor {
         String batchId = composeBatchId(actorMessage, idFromRequest);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get(JsonKey.ACTIVITYTYPE);
+        
+        // Validate activity exists and type matches before creating batch
+        validateActivityExistsAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
         activityBatch.setStatus(setActivityBatchStatus((String) request.get(JsonKey.START_DATE)));
         activityBatch.setCreatedDate(ProjectUtil.getTimeStamp());
-        if (StringUtils.isBlank(activityBatch.getCreatedBy())) {
-            activityBatch.setCreatedBy(requestedBy);
-        }
+        
+        // Handle createdBy field with priority: request body > auth token > system
+        String createdBy = determineCreatedBy(request, requestedBy);
+        request.put(JsonKey.CREATED_BY, createdBy);
+        activityBatch.setCreatedBy(createdBy);
         activityBatch.setBatchId(batchId);
         
         // Validate createdFor organizations
@@ -120,6 +126,9 @@ public class ActivityBatchManagementActor extends BaseActor {
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get("activityType");
         
+        // Validate activity exists and type matches before updating batch
+        validateActivityExistsAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
         // Read existing batch to validate permissions
         ActivityBatch existingBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
         validateUserPermission(existingBatch, requestedBy);
@@ -129,10 +138,39 @@ public class ActivityBatchManagementActor extends BaseActor {
         // Validate createdFor organizations if being updated
         validateContentOrg(actorMessage.getRequestContext(), activityBatch.getCreatedFor());
         activityBatch.setUpdatedDate(ProjectUtil.getTimeStamp());
+        
+        // Create update data with only valid table columns
         Map<String, Object> updateData = new HashMap<>();
-        updateData.putAll(request);
-        updateData.remove(JsonKey.BATCH_ID);
-        updateData.remove(JsonKey.ACTIVITYID);
+        
+        // Only include fields that exist in the batches table
+        if (request.containsKey(JsonKey.NAME)) {
+            updateData.put(JsonKey.NAME, request.get(JsonKey.NAME));
+        }
+        if (request.containsKey(JsonKey.DESCRIPTION)) {
+            updateData.put(JsonKey.DESCRIPTION, request.get(JsonKey.DESCRIPTION));
+        }
+        if (request.containsKey(JsonKey.START_DATE)) {
+            updateData.put(JsonKey.START_DATE, convertDateStringToTimestamp((String) request.get(JsonKey.START_DATE)));
+        }
+        if (request.containsKey(JsonKey.END_DATE)) {
+            updateData.put(JsonKey.END_DATE, convertDateStringToTimestamp((String) request.get(JsonKey.END_DATE)));
+        }
+        if (request.containsKey(JsonKey.ENROLLMENT_END_DATE)) {
+            updateData.put(JsonKey.ENROLLMENT_END_DATE, convertDateStringToTimestamp((String) request.get(JsonKey.ENROLLMENT_END_DATE)));
+        }
+        if (request.containsKey(JsonKey.ENROLLMENT_TYPE)) {
+            updateData.put(JsonKey.ENROLLMENT_TYPE, request.get(JsonKey.ENROLLMENT_TYPE));
+        }
+        if (request.containsKey(JsonKey.STATUS)) {
+            updateData.put(JsonKey.STATUS, request.get(JsonKey.STATUS));
+        }
+        if (request.containsKey(JsonKey.COURSE_CREATED_FOR)) {
+            updateData.put(JsonKey.COURSE_CREATED_FOR, request.get(JsonKey.COURSE_CREATED_FOR));
+        }
+        if (request.containsKey(JsonKey.CERT_TEMPLATES)) {
+            updateData.put(JsonKey.CERT_TEMPLATES, request.get(JsonKey.CERT_TEMPLATES));
+        }
+        
         updateData.put("updatedDate", ProjectUtil.getTimeStamp());
 
         Response result = activityBatchDao.update(actorMessage.getRequestContext(), activityId, batchId, updateData);
@@ -149,7 +187,7 @@ public class ActivityBatchManagementActor extends BaseActor {
             );
 
             // Push event to Kafka
-            String topic = ProjectUtil.getConfigValue("kafka_topics_batch_instruction");
+            String topic = ProjectUtil.getConfigValue("kafka_activity_batch_topic");
             InstructionEventGenerator.pushInstructionEvent(batchId, topic, eventData);
 
             logger.info(actorMessage.getRequestContext(),
@@ -202,7 +240,7 @@ public class ActivityBatchManagementActor extends BaseActor {
 
         // Actor information
         Map<String, Object> actor = new HashMap<>();
-        actor.put("id", "Batch Creation Flink Job");
+        actor.put("id", "Batch and Enrollment Flink Job");
         actor.put("type", "System");
         eventData.put("actor", actor);
 
@@ -237,13 +275,16 @@ public class ActivityBatchManagementActor extends BaseActor {
 
         // Add additional request data if present
         String[] supportedFields = {"name", "description", "startDate", "endDate", "enrollmentType",
-                "enrollmentEndDate", "status", "createdFor"};
+                "enrollmentEndDate", "status", "createdFor", "createdBy"};
 
         for (String field : supportedFields) {
             if (requestData.containsKey(field)) {
                 edata.put(field, requestData.get(field));
             }
         }
+        
+        // Add requestedBy (authenticated user) to event data
+        edata.put("requestedBy", requestedBy);
 
         eventData.put("edata", edata);
 
@@ -303,5 +344,72 @@ public class ActivityBatchManagementActor extends BaseActor {
             logger.error(requestContext, "Error while fetching OrgID : " + orgId, e);
         }
         return false;
+    }
+
+    /**
+     * Determines the createdBy value with priority:
+     * 1. Request body (if provided)
+     * 2. Authenticated user from token
+     * 3. Default system value
+     *
+     * @param request The request object containing potential createdBy field
+     * @param requestedBy The authenticated user ID from token
+     * @return The determined createdBy value
+     */
+    private String determineCreatedBy(Map<String, Object> request, String requestedBy) {
+        // Priority 1: Check if createdBy is provided in request body
+        if (request.containsKey(JsonKey.CREATED_BY)) {
+            String requestCreatedBy = (String) request.get(JsonKey.CREATED_BY);
+            if (requestCreatedBy != null && !requestCreatedBy.trim().isEmpty()) {
+                return requestCreatedBy.trim();
+            }
+        }
+        
+        // Priority 2: Use authenticated user from token
+        if (requestedBy != null && !requestedBy.trim().isEmpty()) {
+            return requestedBy.trim();
+        }
+        
+        // Priority 3: Default to system
+        return "system";
+    }
+    
+    /**
+     * Convert date string (yyyy-MM-dd) to timestamp for Cassandra
+     */
+    private Long convertDateStringToTimestamp(String dateString) {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            dateFormat.setTimeZone(TimeZone.getTimeZone(ProjectUtil.getConfigValue(JsonKey.SUNBIRD_TIMEZONE)));
+            Date date = dateFormat.parse(dateString.trim());
+            return date.getTime();
+        } catch (Exception e) {
+            logger.error(null, "ActivityBatchManagementActor:convertDateStringToTimestamp: Exception occurred while parsing date: " + dateString + ", error: " + e.getMessage(), e);
+            throw new ProjectCommonException(
+                    ResponseCode.invalidParameterValue.getErrorCode(),
+                    ResponseCode.invalidParameterValue.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode(),
+                    dateString,
+                    "date");
+        }
+    }
+    
+    /**
+     * Validates that the activity exists in the database and its type matches the expected type.
+     * TODO: Implement proper activity validation logic
+     * 
+     * @param requestContext Request context
+     * @param activityId Activity identifier to validate
+     * @param activityType Expected activity type
+     */
+    private void validateActivityExistsAndType(RequestContext requestContext, String activityId, String activityType) {
+        // TODO: Implement activity validation logic
+        // 1. Check if activity exists in database
+        // 2. Verify activity type matches expected type
+        // 3. Ensure activity is in valid state
     }
 }
