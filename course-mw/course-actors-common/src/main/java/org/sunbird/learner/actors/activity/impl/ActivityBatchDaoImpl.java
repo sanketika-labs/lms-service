@@ -68,8 +68,13 @@ public class ActivityBatchDaoImpl implements ActivityBatchDao {
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         } else {
             // Remove participant data if present (similar to course batch pattern)
-            activityList.get(0).remove(JsonKey.PARTICIPANT);
-            return mapper.convertValue(activityList.get(0), ActivityBatch.class);
+            Map<String, Object> activityData = activityList.get(0);
+            activityData.remove(JsonKey.PARTICIPANT);
+            
+            // Convert database field names to Java model field names
+            Map<String, Object> mappedData = convertDatabaseFieldsToModelFields(activityData);
+            
+            return mapper.convertValue(mappedData, ActivityBatch.class);
         }
     }
 
@@ -119,6 +124,67 @@ public class ActivityBatchDaoImpl implements ActivityBatchDao {
                 primaryKey,
                 CourseJsonKey.CERTIFICATE_TEMPLATES_COLUMN,
                 templateId);
+    }
+
+    /**
+     * Converts database field names to Java model field names.
+     * This is the reverse of CassandraUtil.changeCassandraColumnMapping()
+     */
+    private Map<String, Object> convertDatabaseFieldsToModelFields(Map<String, Object> databaseData) {
+        Map<String, Object> modelData = new HashMap<>();
+        
+        for (Map.Entry<String, Object> entry : databaseData.entrySet()) {
+            String dbFieldName = entry.getKey();
+            String modelFieldName = convertDatabaseFieldToModelField(dbFieldName);
+            modelData.put(modelFieldName, entry.getValue());
+        }
+        
+        return modelData;
+    }
+    
+    /**
+     * Converts a single database field name to Java model field name.
+     */
+    private String convertDatabaseFieldToModelField(String dbFieldName) {
+        switch (dbFieldName) {
+            case "activitytype":
+                return "activityType";
+            case "activityid":
+                return "activityId";
+            case "batchid":
+                return "batchId";
+            case "createddate":
+            case "created_date":
+                return "createdDate";
+            case "createdby":
+                return "createdBy";
+            case "createdfor":
+                return "createdFor";
+            case "description":
+                return "description";
+            case "enrollmenttype":
+                return "enrollmentType";
+            case "enrollmentenddate":
+            case "enrollment_enddate":
+                return "enrollmentEndDate";
+            case "name":
+                return "name";
+            case "startdate":
+            case "start_date":
+                return "startDate";
+            case "enddate":
+            case "end_date":
+                return "endDate";
+            case "status":
+                return "status";
+            case "cert_templates":
+                return "certTemplates";
+            case "updateddate":
+            case "updated_date":
+                return "updatedDate";
+            default:
+                return dbFieldName; // Return as-is if no mapping needed
+        }
     }
 
 }
