@@ -55,7 +55,7 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
                 (String) request.getRequest().get(JsonKey.NAME),
                 ResponseCode.mandatoryParamsMissing,
                 JsonKey.NAME);
-        validateEnrolmentType(request);
+        validateEnrolmentTypeForUpdate(request);
         if (null != request.getRequest().get(JsonKey.STATUS)) {
             boolean status = validateBatchStatus(request);
             if (!status) {
@@ -68,7 +68,7 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
         String startDate = (String) request.getRequest().get(JsonKey.START_DATE);
         String endDate = (String) request.getRequest().get(JsonKey.END_DATE);
         String enrollmentEndDate = (String) request.getRequest().get(JsonKey.ENROLLMENT_END_DATE);
-        validateDates(startDate, endDate, enrollmentEndDate);
+        validateDatesForUpdate(startDate, endDate, enrollmentEndDate);
 
     }
 
@@ -86,6 +86,22 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
                     ResponseCode.CLIENT_ERROR.getResponseCode(),
                     enrolmentType,
                     JsonKey.ENROLLMENT_TYPE);
+        }
+    }
+
+    private void validateEnrolmentTypeForUpdate(Request request) {
+        // For updates, enrollmentType is optional - only validate if provided
+        String enrolmentType = (String) request.getRequest().get(JsonKey.ENROLLMENT_TYPE);
+        if (enrolmentType != null && !enrolmentType.trim().isEmpty()) {
+            if (!(ProjectUtil.EnrolmentType.open.getVal().equalsIgnoreCase(enrolmentType)
+                    || ProjectUtil.EnrolmentType.inviteOnly.getVal().equalsIgnoreCase(enrolmentType))) {
+                throw new ProjectCommonException(
+                        ResponseCode.invalidParameterValue.getErrorCode(),
+                        ResponseCode.invalidParameterValue.getErrorMessage(),
+                        ResponseCode.CLIENT_ERROR.getResponseCode(),
+                        enrolmentType,
+                        JsonKey.ENROLLMENT_TYPE);
+            }
         }
     }
 
@@ -141,6 +157,75 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
                 
                 // Validate that enrollmentEndDate is before endDate (if endDate is provided)
                 if (StringUtils.isNotEmpty(endDate)
+                        && batchEndDate.getTime() < batchEnrollmentEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.enrollmentEndDateEndError.getErrorCode(),
+                            ResponseCode.enrollmentEndDateEndError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+            }
+            
+        } catch (ProjectCommonException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ProjectCommonException(
+                    ResponseCode.dateFormatError.getErrorCode(),
+                    ResponseCode.dateFormatError.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode());
+        }
+    }
+
+    private void validateDatesForUpdate(String startDate, String endDate, String enrollmentEndDate) {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        format.setLenient(false);
+        
+        try {
+            Date batchStartDate = null;
+            Date todayDate = format.parse(format.format(new Date()));
+            
+            // Parse startDate if provided
+            if (StringUtils.isNotEmpty(startDate)) {
+                batchStartDate = format.parse(startDate);
+                
+                // Validate that startDate is today or future
+                if (batchStartDate.before(todayDate)) {
+                    throw new ProjectCommonException(
+                            ResponseCode.courseBatchStartDateError.getErrorCode(),
+                            ResponseCode.courseBatchStartDateError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+            }
+            
+            Date batchEndDate = null;
+            Date batchEnrollmentEndDate = null;
+            
+            // Parse endDate if provided
+            if (StringUtils.isNotEmpty(endDate)) {
+                batchEndDate = format.parse(endDate);
+                
+                // If startDate is provided, validate that endDate is after startDate
+                if (batchStartDate != null && batchStartDate.getTime() >= batchEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.endDateError.getErrorCode(),
+                            ResponseCode.endDateError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+            }
+            
+            // Parse and validate enrollmentEndDate if provided
+            if (StringUtils.isNotEmpty(enrollmentEndDate)) {
+                batchEnrollmentEndDate = format.parse(enrollmentEndDate);
+                
+                // If startDate is provided, validate that enrollmentEndDate is after startDate
+                if (batchStartDate != null && batchStartDate.getTime() > batchEnrollmentEndDate.getTime()) {
+                    throw new ProjectCommonException(
+                            ResponseCode.enrollmentEndDateStartError.getErrorCode(),
+                            ResponseCode.enrollmentEndDateStartError.getErrorMessage(),
+                            ResponseCode.CLIENT_ERROR.getResponseCode());
+                }
+                
+                // Validate that enrollmentEndDate is before endDate (if both are provided)
+                if (StringUtils.isNotEmpty(endDate) && batchEndDate != null
                         && batchEndDate.getTime() < batchEnrollmentEndDate.getTime()) {
                     throw new ProjectCommonException(
                             ResponseCode.enrollmentEndDateEndError.getErrorCode(),
