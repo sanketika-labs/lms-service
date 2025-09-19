@@ -515,6 +515,17 @@ public class ProjectUtil {
     }
   }
 
+  public enum ActivityType {
+      competencyFramework("CF"),
+      competencyLevel("CL");
+
+      private String val;
+
+      ActivityType(String val) { this.val = val; }
+
+      public String getVal() { return val; }
+  }
+
   public static VelocityContext getContext(Map<String, Object> map) {
     propertiesCache = PropertiesCache.getInstance();
     VelocityContext context = new VelocityContext();
