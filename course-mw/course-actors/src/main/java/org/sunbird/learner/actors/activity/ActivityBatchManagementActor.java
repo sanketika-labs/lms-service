@@ -3,7 +3,7 @@ package org.sunbird.learner.actors.activity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.sunbird.actor.base.BaseActor;
+import org.sunbird.learner.actors.coursebatch.BaseBatchMgmtActor;
 import org.sunbird.common.exception.ProjectCommonException;
 import org.sunbird.common.models.response.Response;
 import org.sunbird.common.models.util.JsonKey;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
-public class ActivityBatchManagementActor extends BaseActor {
+public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
 
     private ActivityBatchDao activityBatchDao = new ActivityBatchDaoImpl();
     private UserOrgService userOrgService = UserOrgServiceImpl.getInstance();
@@ -68,6 +68,11 @@ public class ActivityBatchManagementActor extends BaseActor {
         String batchId = composeBatchId(actorMessage, idFromRequest);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get(JsonKey.ACTIVITYTYPE);
+        Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
+        
+        // Validate activityId and activityType
+        validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
         activityBatch.setStatus(setActivityBatchStatus((String) request.get(JsonKey.START_DATE)));
         activityBatch.setCreatedDate(ProjectUtil.getTimeStamp());
@@ -119,6 +124,10 @@ public class ActivityBatchManagementActor extends BaseActor {
         String batchId = (String) request.get(JsonKey.BATCH_ID);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get("activityType");
+        Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
+        
+        // Validate activityId and activityType
+        validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
         
         // Read existing batch to validate permissions
         ActivityBatch existingBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
