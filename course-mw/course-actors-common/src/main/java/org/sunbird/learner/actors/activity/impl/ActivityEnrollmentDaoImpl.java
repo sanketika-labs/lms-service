@@ -24,7 +24,7 @@ import org.sunbird.common.models.util.ProjectLogger;
 public class ActivityEnrollmentDaoImpl implements ActivityEnrollmentDao {
 
     private CassandraOperation cassandraOperation = ServiceFactory.getInstance();
-    private Util.DbInfo userEnrollmentDb = Util.dbInfoMap.get(JsonKey.USER_ENROLMENTS_DB);
+    private Util.DbInfo userEnrollmentDb = Util.dbInfoMap.get(JsonKey.ACTIVITY_ENROLMENTS_DB);
     private ObjectMapper mapper = new ObjectMapper();
 
     @Override
