@@ -64,6 +64,8 @@ PATCH 	 /v1/batch/update				        @controllers.activity.ActivityBatchControlle
 POST /v1/activity/enroll                        @controllers.activity.ActivityEnrollmentController.enrollActivity(request: play.mvc.Http.Request)
 POST /v1/activity/unenroll                      @controllers.activity.ActivityEnrollmentController.unenrollActivity(request: play.mvc.Http.Request)
 
+GET      /v1/batch/list/:activityId            @controllers.activity.ActivityBatchController.listBatches(activityId:String, request: play.mvc.Http.Request)
+
 # Certificate APIs
 POST /v1/course/batch/cert/issue           @controllers.certificate.CertificateController.issueCertificate(request: play.mvc.Http.Request)
 PATCH /v1/course/batch/cert/template/add           @controllers.certificate.CertificateController.addCertificate(request: play.mvc.Http.Request)

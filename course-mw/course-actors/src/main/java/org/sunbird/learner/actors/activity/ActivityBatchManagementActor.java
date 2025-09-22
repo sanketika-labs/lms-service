@@ -3,7 +3,7 @@ package org.sunbird.learner.actors.activity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.sunbird.actor.base.BaseActor;
+import org.sunbird.learner.actors.coursebatch.BaseBatchMgmtActor;
 import org.sunbird.common.exception.ProjectCommonException;
 import org.sunbird.common.models.response.Response;
 import org.sunbird.common.models.util.JsonKey;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
-public class ActivityBatchManagementActor extends BaseActor {
+public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
 
     private ActivityBatchDao activityBatchDao = new ActivityBatchDaoImpl();
     private UserOrgService userOrgService = UserOrgServiceImpl.getInstance();
@@ -52,6 +52,9 @@ public class ActivityBatchManagementActor extends BaseActor {
             case "updateBatch":
                 updateActivityBatch(request);
                 break;
+            case "getActivityBatches":
+                listActivityBatches(request);
+                break;
             default:
                 onReceiveUnsupportedOperation(request.getOperation());
                 break;
@@ -60,6 +63,16 @@ public class ActivityBatchManagementActor extends BaseActor {
 
     private String composeBatchId(Request request, boolean fromReq) {
         return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+    }
+
+    private void listActivityBatches(Request actorMessage) {
+        String activityId = (String) actorMessage.getContext().get(JsonKey.ACTIVITYID);
+        // Validate activityId by ensuring collection exists and is valid
+        getCollectionDetails(actorMessage.getRequestContext(), activityId);
+        java.util.List<java.util.Map<String, Object>> result = activityBatchDao.listByActivityId(actorMessage.getRequestContext(), activityId);
+        Response response = new Response();
+        response.put(JsonKey.RESPONSE, result);
+        sender().tell(response, self());
     }
 
     private void createActivityBatch(Request actorMessage, boolean idFromRequest) throws Exception {
@@ -71,6 +84,14 @@ public class ActivityBatchManagementActor extends BaseActor {
         
         // Validate activity exists and type matches before creating batch
         validateActivityExistsAndType(actorMessage.getRequestContext(), activityId, activityType);
+
+        Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
+        
+        // Validate activityId and activityType
+        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
+        // Get collection details for updateCollection call
+
         
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
         activityBatch.setStatus(setActivityBatchStatus((String) request.get(JsonKey.START_DATE)));
@@ -86,6 +107,12 @@ public class ActivityBatchManagementActor extends BaseActor {
         validateContentOrg(actorMessage.getRequestContext(), activityBatch.getCreatedFor());
 
         Response result = activityBatchDao.create(actorMessage.getRequestContext(), activityBatch);
+
+        // Create activity batch mapping for updateCollection
+        Map<String, Object> esActivityBatchMap = createActivityBatchMapping(activityBatch, dateFormat);
+    
+        // Update collection metadata with batch information
+        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
         //Generating an event into Kafka
         if ("CF".equalsIgnoreCase(activityType)) {
@@ -125,6 +152,11 @@ public class ActivityBatchManagementActor extends BaseActor {
         String batchId = (String) request.get(JsonKey.BATCH_ID);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get("activityType");
+        Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
+        
+        // Validate activityId and activityType
+        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
         
         // Validate activity exists and type matches before updating batch
         validateActivityExistsAndType(actorMessage.getRequestContext(), activityId, activityType);
@@ -174,6 +206,11 @@ public class ActivityBatchManagementActor extends BaseActor {
         updateData.put("updatedDate", ProjectUtil.getTimeStamp());
 
         Response result = activityBatchDao.update(actorMessage.getRequestContext(), activityId, batchId, updateData);
+
+        // Create updated activity batch mapping and update collection metadata
+        ActivityBatch updatedBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
+        Map<String, Object> esActivityBatchMap = createActivityBatchMapping(updatedBatch, dateFormat);
+        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
         if ("CF".equalsIgnoreCase(activityType)) {
             // Create event data for Kafka
@@ -411,5 +448,31 @@ public class ActivityBatchManagementActor extends BaseActor {
         // 1. Check if activity exists in database
         // 2. Verify activity type matches expected type
         // 3. Ensure activity is in valid state
+    /**  
+     * Creates a mapping of ActivityBatch for elasticsearch/collection updates.
+     * Similar to CourseBatchUtil.esCourseMapping but for ActivityBatch.
+     *
+     * @param activityBatch The ActivityBatch object to map
+     * @param dateFormat The date format to use for date fields
+     * @return Map containing the mapped activity batch data
+     */
+    private Map<String, Object> createActivityBatchMapping(ActivityBatch activityBatch, String dateFormat) {
+        Map<String, Object> map = new HashMap<>();
+        
+        // Add all fields
+        map.put(JsonKey.BATCH_ID, activityBatch.getBatchId());
+        map.put(JsonKey.NAME, activityBatch.getName());
+        map.put(JsonKey.COURSE_CREATED_FOR, activityBatch.getCreatedFor());
+        map.put(JsonKey.START_DATE, activityBatch.getStartDate());
+        map.put(JsonKey.END_DATE, activityBatch.getEndDate());
+        map.put(JsonKey.ENROLLMENT_TYPE, activityBatch.getEnrollmentType());
+        map.put(JsonKey.STATUS, activityBatch.getStatus());
+        map.put(JsonKey.ENROLLMENT_END_DATE, activityBatch.getEnrollmentEndDate());
+        map.put(JsonKey.COURSE_ID, activityBatch.getActivityId()); // Map activityId to courseId for consistency
+        
+        // Remove all null values
+        map.entrySet().removeIf(entry -> entry.getValue() == null);
+        
+        return map;
     }
 }

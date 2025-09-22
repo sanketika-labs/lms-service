@@ -52,6 +52,15 @@ public interface ActivityBatchDao {
     Map<String, Object> getActivityBatch(RequestContext requestContext, String activityId, String batchId);
 
     /**
+     * List activity batches for a given activityId.
+     *
+     * @param requestContext Request context
+     * @param activityId Activity identifier
+     * @return List of activity batches
+     */
+    java.util.List<java.util.Map<String, Object>> listByActivityId(RequestContext requestContext, String activityId);
+
+    /**
      * Delete specified activity batch.
      *
      * @param requestContext Request context

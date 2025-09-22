@@ -16,6 +16,19 @@ import java.util.List;
 public class ActivityBatchRequestValidator extends BaseRequestValidator {
 
     private static final int ERROR_CODE = ResponseCode.CLIENT_ERROR.getResponseCode();
+    
+    // Singleton instance - thread-safe since the class is stateless
+    private static final ActivityBatchRequestValidator INSTANCE = new ActivityBatchRequestValidator();
+    
+    // Private constructor to prevent direct instantiation
+    private ActivityBatchRequestValidator() {
+        super();
+    }
+    
+    // Public method to get the singleton instance
+    public static ActivityBatchRequestValidator getInstance() {
+        return INSTANCE;
+    }
 
     public void validateCreateActivityBatchRequest(Request request){
         validateParam(
