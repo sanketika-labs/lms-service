@@ -64,6 +64,7 @@ public enum ActorOperations {
   ADD_USER_TO_BATCH("addUserBatch"),
   REMOVE_USER_FROM_BATCH("removeUserFromBatch"),
   GET_BATCH("getBatch"),
+  GET_ACTIVITY_BATCHES("getActivityBatches"),
   INSERT_COURSE_BATCH_ES("insertCourseBatchToEs"),
   UPDATE_COURSE_BATCH_ES("updateCourseBatchToEs"),
   GET_BULK_OP_STATUS("getBulkOpStatus"),

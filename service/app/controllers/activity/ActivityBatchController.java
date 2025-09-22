@@ -60,4 +60,15 @@ public class ActivityBatchController  extends BaseController {
         );
     }
 
+    public CompletionStage<Result> listBatches(String activityId, Http.Request httpRequest) {
+        return handleRequest(
+                activityBatchActorRef,
+                ActorOperations.GET_ACTIVITY_BATCHES.getValue(),
+                activityId,
+                JsonKey.ACTIVITYID,
+                false,
+                httpRequest
+        );
+    }
+
 }

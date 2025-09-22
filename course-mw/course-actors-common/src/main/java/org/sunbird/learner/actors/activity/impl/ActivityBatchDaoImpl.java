@@ -121,4 +121,18 @@ public class ActivityBatchDaoImpl implements ActivityBatchDao {
                 templateId);
     }
 
+    @Override
+    public java.util.List<java.util.Map<String, Object>> listByActivityId(RequestContext requestContext, String activityId) {
+        Map<String, Object> compositeKey = new HashMap<>();
+        compositeKey.put(JsonKey.ACTIVITYID, activityId);
+        Response activityBatchResult = cassandraOperation.getRecordsByCompositeKey(
+                activityBatchDb.getKeySpace(), activityBatchDb.getTableName(), compositeKey, requestContext);
+        java.util.List<java.util.Map<String, Object>> activityList = (java.util.List<java.util.Map<String, Object>>) activityBatchResult.get(JsonKey.RESPONSE);
+        if (activityList == null) {
+            activityList = new java.util.ArrayList<>();
+        }
+        activityList.forEach(m -> m.remove(JsonKey.PARTICIPANT));
+        return activityList;
+    }
+
 }

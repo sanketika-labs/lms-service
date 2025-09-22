@@ -52,6 +52,9 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
             case "updateBatch":
                 updateActivityBatch(request);
                 break;
+            case "getActivityBatches":
+                listActivityBatches(request);
+                break;
             default:
                 onReceiveUnsupportedOperation(request.getOperation());
                 break;
@@ -60,6 +63,14 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
 
     private String composeBatchId(Request request, boolean fromReq) {
         return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+    }
+
+    private void listActivityBatches(Request actorMessage) {
+        String activityId = (String) actorMessage.getContext().get(JsonKey.ACTIVITYID);
+        java.util.List<java.util.Map<String, Object>> result = activityBatchDao.listByActivityId(actorMessage.getRequestContext(), activityId);
+        Response response = new Response();
+        response.put(JsonKey.RESPONSE, result);
+        sender().tell(response, self());
     }
 
     private void createActivityBatch(Request actorMessage, boolean idFromRequest) throws Exception {
