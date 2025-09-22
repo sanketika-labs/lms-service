@@ -63,7 +63,11 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
     }
 
     private String composeBatchId(Request request, boolean fromReq) {
-        return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+        String provided = fromReq ? (String) request.get(JsonKey.BATCH_ID) : null;
+        if (StringUtils.isBlank(provided)) {
+            return ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+        }
+        return provided;
     }
 
     private void listActivityBatches(Request actorMessage) {
