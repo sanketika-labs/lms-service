@@ -65,7 +65,7 @@ public abstract class BaseBatchMgmtActor extends BaseActor {
      * @param activityType The expected activity type
      * @throws ProjectCommonException if validation fails
      */
-    protected void validateActivityIdAndType(RequestContext requestContext, String activityId, String activityType) {
+    protected Map<String, Object> validateActivityIdAndType(RequestContext requestContext, String activityId, String activityType) {
         // Get collection details using activityId as courseId - this will throw exception if object doesn't exist
         Map<String, Object> collectionDetails = getCollectionDetails(requestContext, activityId);
         
@@ -84,6 +84,7 @@ public abstract class BaseBatchMgmtActor extends BaseActor {
                     "ActivityType '" + activityType + "' does not match the content's primaryCategory '" + primaryCategory + "'",
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         }
+        return collectionDetails;
     }
 
     /**

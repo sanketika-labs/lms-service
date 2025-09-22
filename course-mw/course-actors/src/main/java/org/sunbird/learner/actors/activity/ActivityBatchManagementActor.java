@@ -71,7 +71,9 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
         
         // Validate activityId and activityType
-        validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
+        // Get collection details for updateCollection call
         
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
         activityBatch.setStatus(setActivityBatchStatus((String) request.get(JsonKey.START_DATE)));
@@ -85,6 +87,12 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         validateContentOrg(actorMessage.getRequestContext(), activityBatch.getCreatedFor());
 
         Response result = activityBatchDao.create(actorMessage.getRequestContext(), activityBatch);
+
+        // Create activity batch mapping for updateCollection
+        Map<String, Object> esActivityBatchMap = createActivityBatchMapping(activityBatch, dateFormat);
+    
+        // Update collection metadata with batch information
+        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
         //Generating an event into Kafka
         if ("CF".equalsIgnoreCase(activityType)) {
@@ -127,7 +135,8 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
         
         // Validate activityId and activityType
-        validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        
         
         // Read existing batch to validate permissions
         ActivityBatch existingBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
@@ -145,6 +154,11 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         updateData.put("updatedDate", ProjectUtil.getTimeStamp());
 
         Response result = activityBatchDao.update(actorMessage.getRequestContext(), activityId, batchId, updateData);
+
+        // Create updated activity batch mapping and update collection metadata
+        ActivityBatch updatedBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
+        Map<String, Object> esActivityBatchMap = createActivityBatchMapping(updatedBatch, dateFormat);
+        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
         if ("CF".equalsIgnoreCase(activityType)) {
             // Create event data for Kafka
@@ -312,5 +326,33 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
             logger.error(requestContext, "Error while fetching OrgID : " + orgId, e);
         }
         return false;
+    }
+
+    /**
+     * Creates a mapping of ActivityBatch for elasticsearch/collection updates.
+     * Similar to CourseBatchUtil.esCourseMapping but for ActivityBatch.
+     *
+     * @param activityBatch The ActivityBatch object to map
+     * @param dateFormat The date format to use for date fields
+     * @return Map containing the mapped activity batch data
+     */
+    private Map<String, Object> createActivityBatchMapping(ActivityBatch activityBatch, String dateFormat) {
+        Map<String, Object> map = new HashMap<>();
+        
+        // Add all fields
+        map.put(JsonKey.BATCH_ID, activityBatch.getBatchId());
+        map.put(JsonKey.NAME, activityBatch.getName());
+        map.put(JsonKey.COURSE_CREATED_FOR, activityBatch.getCreatedFor());
+        map.put(JsonKey.START_DATE, activityBatch.getStartDate());
+        map.put(JsonKey.END_DATE, activityBatch.getEndDate());
+        map.put(JsonKey.ENROLLMENT_TYPE, activityBatch.getEnrollmentType());
+        map.put(JsonKey.STATUS, activityBatch.getStatus());
+        map.put(JsonKey.ENROLLMENT_END_DATE, activityBatch.getEnrollmentEndDate());
+        map.put(JsonKey.COURSE_ID, activityBatch.getActivityId()); // Map activityId to courseId for consistency
+        
+        // Remove all null values
+        map.entrySet().removeIf(entry -> entry.getValue() == null);
+        
+        return map;
     }
 }
