@@ -67,6 +67,8 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
 
     private void listActivityBatches(Request actorMessage) {
         String activityId = (String) actorMessage.getContext().get(JsonKey.ACTIVITYID);
+        // Validate activityId by ensuring collection exists and is valid
+        getCollectionDetails(actorMessage.getRequestContext(), activityId);
         java.util.List<java.util.Map<String, Object>> result = activityBatchDao.listByActivityId(actorMessage.getRequestContext(), activityId);
         Response response = new Response();
         response.put(JsonKey.RESPONSE, result);
