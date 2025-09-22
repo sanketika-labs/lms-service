@@ -23,6 +23,7 @@ import org.sunbird.models.activity.ActivityBatch;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -114,8 +115,8 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         // Update collection metadata with batch information
         updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
-        //Generating an event into Kafka
-        if ("CF".equalsIgnoreCase(activityType)) {
+        //Generating an event into Kafka for configured primary activity types
+        if (shouldTriggerBatchEvent(activityType)) {
             // Create event data structure matching the target event format
             Map<String, Object> eventData = createBatchEventData(
                     batchId,
@@ -212,7 +213,8 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, Object> esActivityBatchMap = createActivityBatchMapping(updatedBatch, dateFormat);
         updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
 
-        if ("CF".equalsIgnoreCase(activityType)) {
+        //Generating an event into Kafka for configured primary activity types
+        if (shouldTriggerBatchEvent(activityType)) {
             // Create event data for Kafka
             Map<String, Object> eventData = createBatchEventData(
                     batchId,
@@ -329,20 +331,25 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
     }
 
     private String getObjectTypeFromActivityType(String activityType) {
-        if (activityType == null) {
-            return "Content";
-        }
+        return (activityType == null) ? "Content" : activityType;        
+    }
 
-        switch (activityType.toUpperCase()) {
-            case "CF":
-                return "Competency Framework";
-            case "CL":
-                return "Competency Level";
-            case "CB":
-                return "Course";
-            default:
-                return "Content";
+    private boolean shouldTriggerBatchEvent(String activityType) {
+        String configured = ProjectUtil.getConfigValue(JsonKey.PRIMARY_ACTIVITY_TYPES);
+        // Default to ["Competency Framework"] when not configured
+        String[] types = (configured == null || configured.trim().isEmpty())
+                ? new String[]{"Competency Framework"}
+                : configured.split(",");
+        if (activityType == null) {
+            return false;
         }
+        String atLower = activityType.trim().toLowerCase();
+        for (String t : types) {
+            if (t != null && atLower.equals(t.trim().toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void validateUserPermission(ActivityBatch activityBatch, String requestedBy) {
