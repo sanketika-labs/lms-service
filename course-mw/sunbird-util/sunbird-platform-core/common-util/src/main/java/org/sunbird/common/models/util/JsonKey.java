@@ -535,6 +535,7 @@ public final class JsonKey {
   public static final String GROUP_ACTIVITY_DB = "groupActivityDB";
   public static final String ACTIVITYID = "activityId";
   public static final String ACTIVITYTYPE = "activityType";
+  public static final String PRIMARY_ACTIVITY_TYPES = "primary_activity_types";
   public static final String GROUP_SERVICE_API_BASE_URL ="sunbird_group_service_api_base_url";
   public static final String COLLECTION_ID = "collectionId";
   public static final String TRACKABLE_ENABLED = "trackable.enabled";
