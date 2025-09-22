@@ -33,6 +33,20 @@ public class ActivityEnrollmentController extends BaseController {
                 httpRequest);
     }
 
+    public CompletionStage<Result> privateEnrollActivity(Http.Request httpRequest) {
+        return handleRequest(
+                activityEnrolmentActor,
+                ActorOperations.ENROLL_ACTIVITY.getValue(),
+                httpRequest.body().asJson(),
+                (request) -> {
+                    Request req = (Request) request;
+                    new ActivityEnrollmentRequestValidator().validateEnrollActivity(req);
+                    return null;
+                },
+                getAllRequestHeaders(httpRequest),
+                httpRequest);
+    }
+
     public CompletionStage<Result> unenrollActivity(Http.Request httpRequest) {
         return handleRequest(
                 activityEnrolmentActor,
