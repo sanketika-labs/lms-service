@@ -39,7 +39,7 @@ public abstract class BaseBatchMgmtActor extends BaseActor {
      * @throws ProjectCommonException if the course is invalid or not found
      */
     protected Map<String, Object> getCollectionDetails(RequestContext requestContext, String activityId) {
-        Map<String, Object> contentResponse = ContentUtil.getContent(activityId, Arrays.asList("status", "batches", "leafNodesCount"));
+        Map<String, Object> contentResponse = ContentUtil.getContent(activityId, Arrays.asList("status", "batches", "leafNodesCount", "primaryCategory"));
         logger.info(requestContext, "BaseBatchMgmtActor:getCollectionDetails: activityId: " + activityId, null,
                 contentResponse);
         String status = (String) ((Map<String, Object>)contentResponse.getOrDefault("content", new HashMap<>())).getOrDefault("status", "");
