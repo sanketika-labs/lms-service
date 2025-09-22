@@ -27,33 +27,33 @@ import java.util.TimeZone;
 public abstract class BaseBatchMgmtActor extends BaseActor {
 
     private String dateFormat = "yyyy-MM-dd";
-    private List<String> validCourseStatus = Arrays.asList("Live", "Unlisted");
+    private List<String> validCollectionStatus = Arrays.asList("Live", "Unlisted");
     private String timeZone = ProjectUtil.getConfigValue(JsonKey.SUNBIRD_TIMEZONE);
 
     /**
-     * Retrieves collection details for a given course ID and validates the content.
+     * Retrieves collection details for a given activity ID and validates the content.
      *
      * @param requestContext The request context for logging and tracing
-     * @param courseId The course ID to retrieve collection details for
+     * @param activityId The activity ID to retrieve collection details for
      * @return Map containing collection details
      * @throws ProjectCommonException if the course is invalid or not found
      */
-    protected Map<String, Object> getCollectionDetails(RequestContext requestContext, String courseId) {
-        Map<String, Object> ekStepContent = ContentUtil.getContent(courseId, Arrays.asList("status", "batches", "leafNodesCount"));
-        logger.info(requestContext, "BaseBatchMgmtActor:getCollectionDetails: courseId: " + courseId, null,
-                ekStepContent);
-        String status = (String) ((Map<String, Object>)ekStepContent.getOrDefault("content", new HashMap<>())).getOrDefault("status", "");
-        Integer leafNodesCount = (Integer) ((Map<String, Object>) ekStepContent.getOrDefault("content", new HashMap<>())).getOrDefault("leafNodesCount", 0);
-        if (null == ekStepContent ||
-                ekStepContent.size() == 0 ||
-                !validCourseStatus.contains(status) || leafNodesCount == 0) {
-            logger.info(requestContext, "BaseBatchMgmtActor:getCollectionDetails: Invalid courseId = " + courseId);
+    protected Map<String, Object> getCollectionDetails(RequestContext requestContext, String activityId) {
+        Map<String, Object> contentResponse = ContentUtil.getContent(activityId, Arrays.asList("status", "batches", "leafNodesCount"));
+        logger.info(requestContext, "BaseBatchMgmtActor:getCollectionDetails: activityId: " + activityId, null,
+                contentResponse);
+        String status = (String) ((Map<String, Object>)contentResponse.getOrDefault("content", new HashMap<>())).getOrDefault("status", "");
+        Integer leafNodesCount = (Integer) ((Map<String, Object>) contentResponse.getOrDefault("content", new HashMap<>())).getOrDefault("leafNodesCount", 0);
+        if (null == contentResponse ||
+                contentResponse.size() == 0 ||
+                !validCollectionStatus.contains(status) || leafNodesCount == 0) {
+            logger.info(requestContext, "BaseBatchMgmtActor:getCollectionDetails: Invalid activityId = " + activityId);
             throw new ProjectCommonException(
                     ResponseCode.invalidCourseId.getErrorCode(),
                     ResponseCode.invalidCourseId.getErrorMessage(),
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         }
-        return (Map<String, Object>)ekStepContent.getOrDefault("content", new HashMap<>());
+        return (Map<String, Object>)contentResponse.getOrDefault("content", new HashMap<>());
     }
 
     /**
