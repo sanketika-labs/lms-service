@@ -89,7 +89,10 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
         
         // Validate activityId and activityType
-        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        Map<String, Object> contentDetails = new HashMap<>();
+        if(isPrimaryActivityType(activityType)) {
+            contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        }
         
         // Get collection details for updateCollection call
         
@@ -110,10 +113,12 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, Object> esActivityBatchMap = createActivityBatchMapping(activityBatch, dateFormat);
     
         // Update collection metadata with batch information
-        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
+        if(isPrimaryActivityType(activityType)) {
+            updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
+        }
 
         //Generating an event into Kafka for configured primary activity types
-        if (shouldTriggerBatchEvent(activityType)) {
+        if (isPrimaryActivityType(activityType)) {
             // Create event data structure matching the target event format
             Map<String, Object> eventData = createBatchEventData(
                     batchId,
@@ -153,7 +158,10 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
         
         // Validate activityId and activityType
-        Map<String, Object> contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        Map<String, Object> contentDetails = new HashMap<>();
+        if(isPrimaryActivityType(activityType)) {
+            contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+        }
         
         
         // Read existing batch to validate permissions
@@ -176,10 +184,12 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         // Create updated activity batch mapping and update collection metadata
         ActivityBatch updatedBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
         Map<String, Object> esActivityBatchMap = createActivityBatchMapping(updatedBatch, dateFormat);
-        updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
+        if(isPrimaryActivityType(activityType)) {
+            updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
+        }
 
         //Generating an event into Kafka for configured primary activity types
-        if (shouldTriggerBatchEvent(activityType)) {
+        if (isPrimaryActivityType(activityType)) {
             // Create event data for Kafka
             Map<String, Object> eventData = createBatchEventData(
                     batchId,
@@ -296,7 +306,7 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         return (activityType == null) ? "Content" : activityType;        
     }
 
-    private boolean shouldTriggerBatchEvent(String activityType) {
+    private boolean isPrimaryActivityType(String activityType) {
         String configured = ProjectUtil.getConfigValue(JsonKey.PRIMARY_ACTIVITY_TYPES);
         // Default to ["Competency Framework"] when not configured
         String[] types = (configured == null || configured.trim().isEmpty())
