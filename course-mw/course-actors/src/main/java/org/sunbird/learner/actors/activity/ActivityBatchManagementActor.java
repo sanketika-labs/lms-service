@@ -63,7 +63,11 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
     }
 
     private String composeBatchId(Request request, boolean fromReq) {
-        return fromReq ? (String) request.get(JsonKey.BATCH_ID) : ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+        String provided = fromReq ? (String) request.get(JsonKey.BATCH_ID) : null;
+        if (StringUtils.isBlank(provided)) {
+            return ProjectUtil.getUniqueIdFromTimestamp(request.getEnv());
+        }
+        return provided;
     }
 
     private void listActivityBatches(Request actorMessage) {
@@ -455,14 +459,15 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         // 1. Check if activity exists in database
         // 2. Verify activity type matches expected type
         // 3. Ensure activity is in valid state
-    /**  
-     * Creates a mapping of ActivityBatch for elasticsearch/collection updates.
-     * Similar to CourseBatchUtil.esCourseMapping but for ActivityBatch.
-     *
-     * @param activityBatch The ActivityBatch object to map
-     * @param dateFormat The date format to use for date fields
-     * @return Map containing the mapped activity batch data
-     */
+        /**
+         * Creates a mapping of ActivityBatch for elasticsearch/collection updates.
+         * Similar to CourseBatchUtil.esCourseMapping but for ActivityBatch.
+         *
+         * @param activityBatch The ActivityBatch object to map
+         * @param dateFormat The date format to use for date fields
+         * @return Map containing the mapped activity batch data
+         */
+    }
     private Map<String, Object> createActivityBatchMapping(ActivityBatch activityBatch, String dateFormat) {
         Map<String, Object> map = new HashMap<>();
         
