@@ -183,7 +183,8 @@ public class ActivityBatchDaoImpl implements ActivityBatchDao {
             case "updated_date":
                 return "updatedDate";
             default:
-                return dbFieldName; // Return as-is if no mapping needed
+                return dbFieldName;
+         } // Return as-is if no mapping needed
         }
 
     @Override
