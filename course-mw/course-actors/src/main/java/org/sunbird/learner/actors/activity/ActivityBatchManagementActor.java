@@ -20,10 +20,8 @@ import org.sunbird.learner.actors.activity.dao.ActivityBatchDao;
 import org.sunbird.learner.actors.activity.impl.ActivityBatchDaoImpl;
 import org.sunbird.learner.util.Util;
 import org.sunbird.models.activity.ActivityBatch;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +36,13 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
     private String dateFormat = "yyyy-MM-dd";
     private String timeZone = ProjectUtil.getConfigValue(JsonKey.SUNBIRD_TIMEZONE);
 
+    /**
+     * Handles incoming requests for activity batch management operations such as create, update, and list.
+     * Dispatches the request to the appropriate handler based on the operation type.
+     *
+     * @param request the incoming request object
+     * @throws Throwable if any error occurs during processing
+     */
     @Override
     public void onReceive(Request request) throws Throwable {
         Util.initializeContext(request, TelemetryEnvKey.BATCH, this.getClass().getName());
@@ -62,6 +67,14 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         }
     }
 
+    /**
+     * Composes a batch ID for the activity batch. If fromReq is true, uses the provided batch ID from the request;
+     * otherwise, generates a new unique batch ID based on the environment.
+     *
+     * @param request the request object
+     * @param fromReq flag indicating whether to use the batch ID from the request
+     * @return the composed or generated batch ID
+     */
     private String composeBatchId(Request request, boolean fromReq) {
         String provided = fromReq ? (String) request.get(JsonKey.BATCH_ID) : null;
         if (StringUtils.isBlank(provided)) {
@@ -70,32 +83,47 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         return provided;
     }
 
+    /**
+     * Lists all activity batches for a given activity ID. Validates the activity ID and fetches the batch list from the DAO.
+     * Sends the result back to the sender.
+     *
+     * @param actorMessage the request object containing context and activity ID
+     */
     private void listActivityBatches(Request actorMessage) {
         String activityId = (String) actorMessage.getContext().get(JsonKey.ACTIVITYID);
-        // Validate activityId by ensuring collection exists and is valid
-        getCollectionDetails(actorMessage.getRequestContext(), activityId);
-        java.util.List<java.util.Map<String, Object>> result = activityBatchDao.listByActivityId(actorMessage.getRequestContext(), activityId);
+        RequestContext requestContext = actorMessage.getRequestContext();
+        logger.info(requestContext, "ActivityBatchManagementActor:listActivityBatches: activityId=" + activityId);
+        getCollectionDetails(requestContext, activityId);
+        java.util.List<java.util.Map<String, Object>> result = activityBatchDao.listByActivityId(requestContext, activityId);
+        logger.info(requestContext, "ActivityBatchManagementActor:listActivityBatches: Found " + (result != null ? result.size() : 0) + " batches for activityId=" + activityId);
         Response response = new Response();
         response.put(JsonKey.RESPONSE, result);
         sender().tell(response, self());
     }
 
+    /**
+     * Creates a new activity batch. Validates input, sets batch status, persists the batch, updates collection metadata,
+     * and generates an event if the activity type is primary.
+     *
+     * @param actorMessage the request object containing batch creation details
+     * @param idFromRequest flag indicating whether to use the batch ID from the request
+     * @throws Exception if any error occurs during batch creation
+     */
     private void createActivityBatch(Request actorMessage, boolean idFromRequest) throws Exception {
         Map<String, Object> request = actorMessage.getRequest();
+        RequestContext requestContext = actorMessage.getRequestContext();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
         String batchId = composeBatchId(actorMessage, idFromRequest);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get(JsonKey.ACTIVITYTYPE);
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
-        
-        // Validate activityId and activityType
+
+        logger.info(requestContext, "ActivityBatchManagementActor:createActivityBatch - Incoming request: activityId=" + activityId + ", activityType=" + activityType + ", requestedBy=" + requestedBy + ", batchId=" + batchId);
         Map<String, Object> contentDetails = new HashMap<>();
         if(isPrimaryActivityType(activityType)) {
-            contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+            contentDetails = validateActivityIdAndType(requestContext, activityId, activityType);
+            logger.info(requestContext, "ActivityBatchManagementActor:createActivityBatch - Content details validated for activityId=" + activityId + ", activityType=" + activityType + ", contentDetails=" + contentDetails);
         }
-        
-        // Get collection details for updateCollection call
-        
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
         activityBatch.setStatus(setActivityBatchStatus((String) request.get(JsonKey.START_DATE)));
         activityBatch.setCreatedDate(ProjectUtil.getTimeStamp());
@@ -103,21 +131,15 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
             activityBatch.setCreatedBy(requestedBy);
         }
         activityBatch.setBatchId(batchId);
-        
-        // Validate createdFor organizations
-        validateContentOrg(actorMessage.getRequestContext(), activityBatch.getCreatedFor());
+        logger.info(requestContext, "ActivityBatchManagementActor:createActivityBatch - Validating createdFor organizations: " + activityBatch.getCreatedFor());
+        validateContentOrg(requestContext, activityBatch.getCreatedFor());
+        Response result = activityBatchDao.create(requestContext, activityBatch);
 
-        Response result = activityBatchDao.create(actorMessage.getRequestContext(), activityBatch);
-
-        // Create activity batch mapping for updateCollection
         Map<String, Object> esActivityBatchMap = createActivityBatchMapping(activityBatch, dateFormat);
-    
-        // Update collection metadata with batch information
-        if(isPrimaryActivityType(activityType)) {
-            updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
-        }
 
-        //Generating an event into Kafka for configured primary activity types
+        if(isPrimaryActivityType(activityType)) {
+            updateCollection(requestContext, esActivityBatchMap, contentDetails);
+        }
         if (isPrimaryActivityType(activityType)) {
             // Create event data structure matching the target event format
             Map<String, Object> eventData = createBatchEventData(
@@ -128,50 +150,56 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
                     request,
                     "create"
             );
-
             // Push event to Kafka
             String topic = ProjectUtil.getConfigValue("kafka_activity_batch_topic");
             InstructionEventGenerator.pushInstructionEvent(batchId, topic, eventData);
-
-            logger.info(actorMessage.getRequestContext(),
-                    "ActivityBatchManagementActor: createBatch - Event published for CF activity. ActivityId: " + activityId + ", batchId: " + batchId);
+            logger.info(requestContext,
+                    "ActivityBatchManagementActor:createBatch - Event published for the activityType " + activityType + ". ActivityId: " + activityId + ", batchId: " + batchId);
         } else {
-            logger.info(actorMessage.getRequestContext(),
-                    "ActivityBatchManagementActor: createBatch - No event generated for activityType: " + activityType + ". ActivityId: " + activityId + ", batchId: " + batchId);
+            logger.info(requestContext,
+                    "ActivityBatchManagementActor:createBatch - No event generated for activityType: " + activityType + ". ActivityId: " + activityId + ", batchId: " + batchId);
         }
 
         result.put(JsonKey.BATCH_ID, batchId);
         sender().tell(result, self());
 
-        logger.info(actorMessage.getRequestContext(),
-                "ActivityBatchManagementActor: createBatch - ActivityBatch created for activityId: " + activityId + ", batchId: " + batchId + ", activityType: " + activityType);
+        logger.info(requestContext,
+                "ActivityBatchManagementActor:createBatch - ActivityBatch created for activityId: " + activityId + ", batchId: " + batchId + ", activityType: " + activityType);
 
     }
 
+    /**
+     * Updates an existing activity batch. Validates input, checks permissions, updates the batch, updates collection metadata,
+     * and generates an event if the activity type is primary.
+     *
+     * @param actorMessage the request object containing batch update details
+     * @throws Exception if any error occurs during batch update
+     */
     private void updateActivityBatch(Request actorMessage) throws Exception {
 
         Map<String, Object> request = actorMessage.getRequest();
+        RequestContext requestContext = actorMessage.getRequestContext();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
         String batchId = (String) request.get(JsonKey.BATCH_ID);
         String activityId = (String) request.get(JsonKey.ACTIVITYID);
         String activityType = (String) request.get("activityType");
         Map<String, String> headers = (Map<String, String>) actorMessage.getContext().get(JsonKey.HEADER);
-        
-        // Validate activityId and activityType
+
+        logger.info(requestContext, "ActivityBatchManagementActor:updateActivityBatch - Incoming request: activityId=" + activityId + ", activityType=" + activityType + ", requestedBy=" + requestedBy + ", batchId=" + batchId);
         Map<String, Object> contentDetails = new HashMap<>();
         if(isPrimaryActivityType(activityType)) {
-            contentDetails = validateActivityIdAndType(actorMessage.getRequestContext(), activityId, activityType);
+            contentDetails = validateActivityIdAndType(requestContext, activityId, activityType);
+            logger.info(requestContext, "ActivityBatchManagementActor:updateActivityBatch - Content details validated for activityId=" + activityId + ", activityType=" + activityType + ", contentDetails=" + contentDetails);
         }
-        
-        
-        // Read existing batch to validate permissions
-        ActivityBatch existingBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
+        ActivityBatch existingBatch = activityBatchDao.readById(activityId, batchId, requestContext);
+        logger.info(requestContext, "ActivityBatchManagementActor:updateActivityBatch - Existing batch fetched for batchId=" + batchId + ", activityId=" + activityId);
         validateUserPermission(existingBatch, requestedBy);
-        
+        logger.info(requestContext, "ActivityBatchManagementActor:updateActivityBatch - User permission validated for requestedBy=" + requestedBy);
+
         ActivityBatch activityBatch = JsonUtil.convert(request, ActivityBatch.class);
-        
-        // Validate createdFor organizations if being updated
-        validateContentOrg(actorMessage.getRequestContext(), activityBatch.getCreatedFor());
+
+        logger.info(requestContext, "ActivityBatchManagementActor:updateActivityBatch - Validating createdFor organizations: " + activityBatch.getCreatedFor());
+        validateContentOrg(requestContext, activityBatch.getCreatedFor());
         activityBatch.setUpdatedDate(ProjectUtil.getTimeStamp());
         Map<String, Object> updateData = new HashMap<>();
         updateData.putAll(request);
@@ -179,13 +207,12 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         updateData.remove(JsonKey.ACTIVITYID);
         updateData.put("updatedDate", ProjectUtil.getTimeStamp());
 
-        Response result = activityBatchDao.update(actorMessage.getRequestContext(), activityId, batchId, updateData);
+        Response result = activityBatchDao.update(requestContext, activityId, batchId, updateData);
 
-        // Create updated activity batch mapping and update collection metadata
-        ActivityBatch updatedBatch = activityBatchDao.readById(activityId, batchId, actorMessage.getRequestContext());
+        ActivityBatch updatedBatch = activityBatchDao.readById(activityId, batchId, requestContext);
         Map<String, Object> esActivityBatchMap = createActivityBatchMapping(updatedBatch, dateFormat);
         if(isPrimaryActivityType(activityType)) {
-            updateCollection(actorMessage.getRequestContext(), esActivityBatchMap, contentDetails);
+            updateCollection(requestContext, esActivityBatchMap, contentDetails);
         }
 
         //Generating an event into Kafka for configured primary activity types
@@ -204,20 +231,27 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
             String topic = ProjectUtil.getConfigValue("kafka_topics_batch_instruction");
             InstructionEventGenerator.pushInstructionEvent(batchId, topic, eventData);
 
-            logger.info(actorMessage.getRequestContext(),
-                    "ActivityBatchManagementActor: updateBatch - Event published for CF activity. BatchId: " + batchId + ", activityId: " + activityId);
+            logger.info(requestContext,
+                    "ActivityBatchManagementActor:updateBatch - Event published for the activityType " + activityType + ". BatchId: " + batchId + ", activityId: " + activityId);
         } else {
-            logger.info(actorMessage.getRequestContext(),
-                    "ActivityBatchManagementActor: updateBatch - No event generated for activityType: " + activityType + ". BatchId: " + batchId + ", activityId: " + activityId);
+            logger.info(requestContext,
+                    "ActivityBatchManagementActor:updateBatch - No event generated for activityType: " + activityType + ". BatchId: " + batchId + ", activityId: " + activityId);
         }
 
         result.put(JsonKey.BATCH_ID, batchId);
         sender().tell(result, self());
 
-        logger.info(actorMessage.getRequestContext(),
+        logger.info(requestContext,
                 "ActivityBatchManagementActor: updateBatch - ActivityBatch updated for batchId: " + batchId + ", activityId: " + activityId + ", activityType: " + activityType);
     }
 
+    /**
+     * Determines the status of an activity batch based on the start date.
+     * Returns STARTED if the start date is today, otherwise NOT_STARTED.
+     *
+     * @param startDate the start date of the batch
+     * @return the status value (STARTED or NOT_STARTED)
+     */
     private int setActivityBatchStatus(String startDate) {
         try {
             SimpleDateFormat dateFormatter = ProjectUtil.getDateFormatter(dateFormat);
@@ -237,6 +271,17 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         return ProjectUtil.ProgressStatus.NOT_STARTED.getValue();
     }
 
+    /**
+     * Creates event data for batch creation or update to be sent to Kafka.
+     *
+     * @param batchId the batch ID
+     * @param activityId the activity ID
+     * @param activityType the activity type
+     * @param requestedBy the user who requested the operation
+     * @param requestData the request data map
+     * @param action the action type (create or update)
+     * @return a map containing the event data
+     */
     private Map<String, Object> createBatchEventData(
             String batchId,
             String activityId,
@@ -302,10 +347,22 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         return eventData;
     }
 
+    /**
+     * Returns the object type string for a given activity type. Defaults to "Content" if activityType is null.
+     *
+     * @param activityType the activity type
+     * @return the object type string
+     */
     private String getObjectTypeFromActivityType(String activityType) {
         return (activityType == null) ? "Content" : activityType;        
     }
 
+    /**
+     * Checks if the given activity type is a primary activity type as per configuration.
+     *
+     * @param activityType the activity type to check
+     * @return true if the activity type is primary, false otherwise
+     */
     private boolean isPrimaryActivityType(String activityType) {
         String configured = ProjectUtil.getConfigValue(JsonKey.PRIMARY_ACTIVITY_TYPES);
         // Default to ["Competency Framework"] when not configured
@@ -324,6 +381,13 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         return false;
     }
 
+    /**
+     * Validates if the user has permission to update the given activity batch.
+     * Throws an exception if the user is not authorized.
+     *
+     * @param activityBatch the activity batch to check
+     * @param requestedBy the user requesting the update
+     */
     private void validateUserPermission(ActivityBatch activityBatch, String requestedBy) {
         String canUpdateBatch = activityBatch.getCreatedBy();
         
@@ -337,6 +401,13 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         }
     }
 
+    /**
+     * Validates that all organization IDs in the createdFor list are valid organizations.
+     * Throws an exception if any organization is invalid.
+     *
+     * @param requestContext the request context
+     * @param createdFor the list of organization IDs to validate
+     */
     private void validateContentOrg(RequestContext requestContext, List<String> createdFor) {
         if (createdFor != null) {
             for (String orgId : createdFor) {
@@ -350,6 +421,13 @@ public class ActivityBatchManagementActor extends BaseBatchMgmtActor {
         }
     }
 
+    /**
+     * Checks if the given organization ID is valid by querying the user organization service.
+     *
+     * @param requestContext the request context
+     * @param orgId the organization ID to check
+     * @return true if the organization is valid, false otherwise
+     */
     private boolean isOrgValid(RequestContext requestContext, String orgId) {
         try {
             Map<String, Object> result = userOrgService.getOrganisationById(orgId);

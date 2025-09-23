@@ -60,6 +60,7 @@ POST     /v1/batch/create				        @controllers.activity.ActivityBatchControll
 POST     /private/v1/batch/create			        @controllers.activity.ActivityBatchController.privateCreateBatch(request: play.mvc.Http.Request)
 PATCH 	 /v1/batch/update				        @controllers.activity.ActivityBatchController.updateBatch(request: play.mvc.Http.Request)
 GET      /v1/batch/list/:activityId            @controllers.activity.ActivityBatchController.listBatches(activityId:String, request: play.mvc.Http.Request)
+
 # Certificate APIs
 POST /v1/course/batch/cert/issue           @controllers.certificate.CertificateController.issueCertificate(request: play.mvc.Http.Request)
 PATCH /v1/course/batch/cert/template/add           @controllers.certificate.CertificateController.addCertificate(request: play.mvc.Http.Request)
