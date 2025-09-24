@@ -133,10 +133,11 @@ public class ActivityBatchRequestValidator extends BaseRequestValidator {
 
         try {
             // Parse startDate
-            Date batchStartDate = format.parse(startDate);
+            Date batchStartDate = null;
             Date todayDate = format.parse(format.format(new Date()));
 
             if(StringUtils.isNotEmpty(startDate)) {
+                batchStartDate = format.parse(startDate);
                 // Validate that startDate is today or future
                 if (batchStartDate.before(todayDate)) {
                     throw new ProjectCommonException(
