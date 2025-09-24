@@ -9,13 +9,11 @@ import org.sunbird.common.request.Request;
 import org.sunbird.common.request.RequestContext;
 import org.sunbird.common.responsecode.ResponseCode;
 import org.sunbird.kafka.client.InstructionEventGenerator;
-import org.sunbird.learner.actors.activity.dao.ActivityBatchDao;
 import org.sunbird.learner.actors.activity.dao.ActivityEnrollmentDao;
 import org.sunbird.learner.actors.activity.impl.ActivityBatchDaoImpl;
 import org.sunbird.learner.actors.activity.impl.ActivityEnrollmentDaoImpl;
 import org.sunbird.learner.actors.coursebatch.BaseBatchMgmtActor;
 import org.sunbird.learner.util.Util;
-import org.sunbird.models.activity.ActivityBatch;
 import org.sunbird.models.activity.ActivityUserEnrolment;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -27,7 +25,6 @@ import java.util.stream.Collectors;
 
 public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
 
-    private ActivityBatchDao activityBatchDao = new ActivityBatchDaoImpl();
     private ActivityEnrollmentDao activityEnrollmentDao = new ActivityEnrollmentDaoImpl();
 
     @Override
@@ -66,14 +63,7 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
             validateActivityIdAndType(requestContext, activityId, activityType);
         }
 
-        // Validate activity batch exists for the specific activityId and activityType
-        ActivityBatch activityBatch = activityBatchDao.readById(activityId, batchId, requestContext);
-        if (activityBatch == null) {
-            throw new ProjectCommonException(
-                    ResponseCode.invalidCourseBatchId.getErrorCode(),
-                    "Activity batch not found for activityId: " + activityId + " and batchId: " + batchId,
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
+        // Activity batch validation removed - allow enrollment without batch validation
 
         // Process enrollment for all users
         List<Map<String, Object>> enrollmentDataList = new ArrayList<>();
