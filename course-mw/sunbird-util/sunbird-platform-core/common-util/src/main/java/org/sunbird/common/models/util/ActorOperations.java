@@ -7,6 +7,9 @@ package org.sunbird.common.models.util;
  * @author Manzarul
  */
 public enum ActorOperations {
+  ENROLL_ACTIVITY("activityEnroll"),
+  UNENROLL_ACTIVITY("activityUnenroll"),
+  LIST_USER_ACTIVITY_ENROLLMENTS("listUserActivityEnrollments"),
   ENROLL_COURSE("enrollCourse"),
   UNENROLL_COURSE("unenrollCourse"),
   GET_COURSE("getCourse"),
