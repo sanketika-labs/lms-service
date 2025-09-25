@@ -67,6 +67,7 @@ class CourseEnrolmentActor @Inject()(@Named("course-batch-notification-actor") c
 
         request.getOperation match {
             case "enrol" => enroll(request)
+            case "bulkEnrol" => bulkEnroll(request)
             case "unenrol" => unEnroll(request)
             case "listEnrol" => list(request)
             case _ => ProjectCommonException.throwClientErrorException(ResponseCode.invalidRequestData,
@@ -89,9 +90,49 @@ class CourseEnrolmentActor @Inject()(@Named("course-batch-notification-actor") c
         generateTelemetryAudit(userId, courseId, batchId, data, "enrol", JsonKey.CREATE, request.getContext)
         notifyUser(userId, batchData, JsonKey.ADD)
     }
-    
-    
-    def unEnroll(request:Request): Unit = {
+
+    def bulkEnroll(request: Request): Unit = {
+      val courseId: String = request.get(JsonKey.COURSE_ID).asInstanceOf[String]
+      val batchId: String = request.get(JsonKey.BATCH_ID).asInstanceOf[String]
+      val userIds: java.util.List[String] = request.get("userIds").asInstanceOf[java.util.List[String]]
+
+      // Validate batch exists once for all users
+      val batchData: CourseBatch = courseBatchDao.readById(courseId, batchId, request.getRequestContext)
+
+      val enrolledUsers = new java.util.ArrayList[String]()
+      val failedEnrollments = new java.util.HashMap[String, String]() // Store userId and error message
+
+      // Process each user enrollment
+      userIds.asScala.foreach { userId =>
+        try {
+          val enrolmentData: UserCourses = userCoursesDao.read(request.getRequestContext, userId, courseId, batchId)
+          validateEnrolment(batchData, enrolmentData, true)
+          val data: java.util.Map[String, AnyRef] = createUserEnrolmentMap(userId, courseId, batchId, enrolmentData, request.getContext.getOrDefault(JsonKey.REQUEST_ID, "").asInstanceOf[String])
+          upsertEnrollment(userId, courseId, batchId, data, (null == enrolmentData), request.getRequestContext)
+          logger.info(request.getRequestContext, "CourseEnrolmentActor :: bulkEnroll :: Deleting redis for key " + getCacheKey(userId))
+          cacheUtil.delete(getCacheKey(userId))
+          generateTelemetryAudit(userId, courseId, batchId, data, "enrol", JsonKey.CREATE, request.getContext)
+          notifyUser(userId, batchData, JsonKey.ADD)
+          enrolledUsers.add(userId)
+        } catch {
+          case ex: ProjectCommonException =>
+          logger.error(request.getRequestContext, s"CourseEnrolmentActor :: bulkEnroll :: Failed to enroll user $userId: ${ex.getMessage}", ex)
+          failedEnrollments.put(userId, ex.getMessage)
+          case ex: Exception =>
+          logger.error(request.getRequestContext, s"CourseEnrolmentActor :: bulkEnroll :: Failed to enroll user $userId with an unexpected error: ${ex.getMessage}", ex)
+          failedEnrollments.put(userId, "Unexpected error occurred during enrollment.")
+        }
+      }
+      // Send response with enrollment results
+      val response = new Response()
+      val result = new java.util.HashMap[String, AnyRef]()
+      result.put("enrolled", enrolledUsers)
+      result.put("failed", failedEnrollments)
+      response.put(JsonKey.RESULT, result)
+      sender().tell(response, self)
+    }
+
+  def unEnroll(request:Request): Unit = {
         val courseId: String = request.get(JsonKey.COURSE_ID).asInstanceOf[String]
         val userId: String = request.get(JsonKey.USER_ID).asInstanceOf[String]
         val batchId: String = request.get(JsonKey.BATCH_ID).asInstanceOf[String]

@@ -19,6 +19,7 @@ POST     /v2/user/courses/list	    @controllers.courseenrollment.CourseEnrollmen
 POST     /v2/user/courses/admin/list	    @controllers.courseenrollment.CourseEnrollmentController.adminGetUserEnrolledCourses(request: play.mvc.Http.Request)
 POST     /private/v2/user/courses/list	    @controllers.courseenrollment.CourseEnrollmentController.privateGetUserEnrolledCourses(request: play.mvc.Http.Request)
 POST     /v1/course/enroll	    		@controllers.courseenrollment.CourseEnrollmentController.enrollCourse(request: play.mvc.Http.Request)
+POST     /private/v1/course/enroll                @controllers.courseenrollment.CourseEnrollmentController.privateBulkEnrollCourse(request: play.mvc.Http.Request)
 POST     /v1/course/unenroll             @controllers.courseenrollment.CourseEnrollmentController.unenrollCourse(request: play.mvc.Http.Request)
 POST     /v1/course/admin/enroll	    		@controllers.courseenrollment.CourseEnrollmentController.adminEnrollCourse(request: play.mvc.Http.Request)
 POST     /v1/course/admin/unenroll             @controllers.courseenrollment.CourseEnrollmentController.adminUnenrollCourse(request: play.mvc.Http.Request)
@@ -60,6 +61,13 @@ POST     /v1/batch/create				        @controllers.activity.ActivityBatchControll
 POST     /private/v1/batch/create			        @controllers.activity.ActivityBatchController.privateCreateBatch(request: play.mvc.Http.Request)
 PATCH 	 /v1/batch/update				        @controllers.activity.ActivityBatchController.updateBatch(request: play.mvc.Http.Request)
 GET      /v1/batch/list/:activityId            @controllers.activity.ActivityBatchController.listBatches(activityId:String, request: play.mvc.Http.Request)
+
+#Generic Enrollment APIs
+POST /v1/activity/enroll                        @controllers.activity.ActivityEnrollmentController.enrollActivity(request: play.mvc.Http.Request)
+POST /private/v1/activity/enroll                @controllers.activity.ActivityEnrollmentController.privateEnrollActivity(request: play.mvc.Http.Request)
+POST /v1/activity/unenroll                      @controllers.activity.ActivityEnrollmentController.unenrollActivity(request: play.mvc.Http.Request)
+POST /v1/user/activity/enrollment/list          @controllers.activity.ActivityEnrollmentController.listUserActivityEnrollments(request: play.mvc.Http.Request)
+
 # Certificate APIs
 POST /v1/course/batch/cert/issue           @controllers.certificate.CertificateController.issueCertificate(request: play.mvc.Http.Request)
 PATCH /v1/course/batch/cert/template/add           @controllers.certificate.CertificateController.addCertificate(request: play.mvc.Http.Request)

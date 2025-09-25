@@ -83,6 +83,7 @@ public final class JsonKey {
   public static final String COURSE_ADDITIONAL_INFO = "courseAdditionalInfo";
   public static final String COURSE_BATCH_DB = "courseBatchDB";
   public static final String ACTIVITY_BATCH_DB = "activityBatchDB";
+  public static final String ACTIVITY_ENROLMENTS_DB = "activity_enrolments";
   public static final String COURSE_CREATED_FOR = "createdFor";
   public static final String COURSE_ENROLL_DATE = "enrolledDate";
   public static final String COURSE_ID = "courseId";
