@@ -10,7 +10,6 @@ import org.sunbird.common.request.RequestContext;
 import org.sunbird.common.responsecode.ResponseCode;
 import org.sunbird.kafka.client.InstructionEventGenerator;
 import org.sunbird.learner.actors.activity.dao.ActivityEnrollmentDao;
-import org.sunbird.learner.actors.activity.impl.ActivityBatchDaoImpl;
 import org.sunbird.learner.actors.activity.impl.ActivityEnrollmentDaoImpl;
 import org.sunbird.learner.actors.coursebatch.BaseBatchMgmtActor;
 import org.sunbird.learner.util.Util;
@@ -23,10 +22,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Actor responsible for managing activity enrollments, unenrollments, and listing user activity enrollments.
+ * This actor handles requests related to user enrollments in activities and batches.
+ */
 public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
 
     private ActivityEnrollmentDao activityEnrollmentDao = new ActivityEnrollmentDaoImpl();
 
+    /**
+     * Handles incoming requests and routes them to the appropriate method based on the operation type.
+     *
+     * @param request The incoming request object containing operation details.
+     * @throws Throwable If an unsupported operation is received.
+     */
     @Override
     public void onReceive(Request request) throws Throwable {
         Util.initializeContext(request, TelemetryEnvKey.BATCH, this.getClass().getName());
@@ -48,6 +57,12 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
         }
     }
 
+    /**
+     * Enrolls users in an activity batch. Validates activity details and processes enrollment for multiple users.
+     *
+     * @param actorMessage The request object containing enrollment details.
+     * @throws Exception If any validation or processing error occurs.
+     */
     private void enrollActivity(Request actorMessage) throws Exception {
         Map<String, Object> request = actorMessage.getRequest();
         RequestContext requestContext = actorMessage.getRequestContext();
@@ -106,7 +121,7 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
             logger.info(requestContext,
                     "ActivityEnrolmentActor: enrollActivity - Event published for CF activity. ActivityId: " + activityId +
                             ", batchId: " + batchId + ", enrolled users: " + enrollmentDataList.size());
-        } else if (!"CF".equalsIgnoreCase(activityType)) {
+        } else {
             logger.info(requestContext,
                     "ActivityEnrolmentActor: enrollActivity - No event generated for activityType: " + activityType +
                             ". ActivityId: " + activityId + ", batchId: " + batchId + ", enrolled users: " + enrollmentDataList.size());
@@ -131,6 +146,12 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
                         ", already enrolled: " + alreadyEnrolledUsers.size());
     }
 
+    /**
+     * Unenrolls users from an activity batch. Validates activity details and processes unenrollment for multiple users.
+     *
+     * @param actorMessage The request object containing unenrollment details.
+     * @throws Exception If any validation or processing error occurs.
+     */
     private void unenrollActivity(Request actorMessage) throws Exception {
         Map<String, Object> request = actorMessage.getRequest();
         RequestContext requestContext = actorMessage.getRequestContext();
@@ -195,7 +216,7 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
             logger.info(requestContext,
                     "ActivityEnrolmentActor: unenrollActivity - Event published for CF activity. ActivityId: " + activityId +
                             ", batchId: " + batchId + ", unenrolled users: " + unenrollmentDataList.size());
-        } else if (!"CF".equalsIgnoreCase(activityType)) {
+        } else {
             logger.info(requestContext,
                     "ActivityEnrolmentActor: unenrollActivity - No event generated for activityType: " + activityType +
                             ". ActivityId: " + activityId + ", batchId: " + batchId + ", unenrolled users: " + unenrollmentDataList.size());
@@ -221,6 +242,12 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
                         ", not enrolled: " + notEnrolledUsers.size());
     }
 
+    /**
+     * Lists all activity enrollments for a specific user. Retrieves enrollment details from the database.
+     *
+     * @param actorMessage The request object containing user details.
+     * @throws Exception If any validation or processing error occurs.
+     */
     private void listUserActivityEnrollments(Request actorMessage) throws Exception {
         Map<String, Object> request = actorMessage.getRequest();
         RequestContext requestContext = actorMessage.getRequestContext();
@@ -255,6 +282,17 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
                 ", count: " + (enrollments != null ? enrollments.size() : 0));
     }
 
+    /**
+     * Creates a map representing user activity enrollment data. This map is used for database insertion.
+     *
+     * @param userId The ID of the user being enrolled.
+     * @param activityId The ID of the activity.
+     * @param activityType The type of the activity.
+     * @param batchId The ID of the batch.
+     * @param existingEnrollment Existing enrollment details, if any.
+     * @param requestedBy The ID of the user making the request.
+     * @return A map containing enrollment data.
+     */
     private Map<String, Object> createUserActivityEnrollmentMap(String userId, String activityId, String activityType, String batchId, ActivityUserEnrolment existingEnrollment, String requestedBy) {
         Map<String, Object> enrollmentData = new HashMap<>();
         enrollmentData.put("userid", userId);
@@ -274,6 +312,18 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
         return enrollmentData;
     }
 
+    /**
+     * Creates event data for bulk enrollment or unenrollment operations. This data is used for Kafka event generation.
+     *
+     * @param batchId The ID of the batch.
+     * @param activityId The ID of the activity.
+     * @param activityType The type of the activity.
+     * @param enrollmentDataList List of enrollment or unenrollment data.
+     * @param requestedBy The ID of the user making the request.
+     * @param requestData The original request data.
+     * @param action The action being performed (e.g., "enroll" or "unenroll").
+     * @return A map containing event data.
+     */
     private Map<String, Object> createBulkEnrollmentEventData(
             String batchId,
             String activityId,
@@ -338,10 +388,22 @@ public class ActivityEnrolmentActor extends BaseBatchMgmtActor {
         return eventData;
     }
 
+    /**
+     * Determines the object type based on the activity type. Defaults to "Content" if activity type is null.
+     *
+     * @param activityType The type of the activity.
+     * @return The object type as a string.
+     */
     private String getObjectTypeFromActivityType(String activityType) {
         return activityType == null ? "Content" : activityType;
     }
 
+    /**
+     * Checks if the given activity type is a primary activity type. Primary activity types are configured in the system.
+     *
+     * @param activityType The type of the activity.
+     * @return True if the activity type is primary, false otherwise.
+     */
     private boolean isPrimaryActivityType(String activityType) {
         String configured = ProjectUtil.getConfigValue(JsonKey.PRIMARY_ACTIVITY_TYPES);
         // Default to ["Competency Framework"] when not configured
