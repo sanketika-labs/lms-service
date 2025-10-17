@@ -373,6 +373,7 @@ public class ProjectUtil {
   public enum EsType {
     course(EsConfigUtil.getConfigValue(JsonKey.ES_COURSE_INDEX)),
     courseBatch(EsConfigUtil.getConfigValue(JsonKey.ES_COURSE_BATCH_INDEX)),
+    activityBatch(EsConfigUtil.getConfigValue(JsonKey.ES_ACTIVITY_BATCH_INDEX)),
     user(EsConfigUtil.getConfigValue(JsonKey.ES_USER_INDEX)),
     organisation(EsConfigUtil.getConfigValue(JsonKey.ES_ORGANISATION_INDEX)),
     usercourses(EsConfigUtil.getConfigValue(JsonKey.ES_USER_COURSES_INDEX));

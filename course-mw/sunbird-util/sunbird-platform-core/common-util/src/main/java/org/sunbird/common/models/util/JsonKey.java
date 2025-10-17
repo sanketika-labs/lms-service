@@ -83,6 +83,7 @@ public final class JsonKey {
   public static final String COURSE_ADDITIONAL_INFO = "courseAdditionalInfo";
   public static final String COURSE_BATCH_DB = "courseBatchDB";
   public static final String ACTIVITY_BATCH_DB = "activityBatchDB";
+  public static final String ACTIVITY_ENROLMENTS_DB = "activity_enrolments";
   public static final String COURSE_CREATED_FOR = "createdFor";
   public static final String COURSE_ENROLL_DATE = "enrolledDate";
   public static final String COURSE_ID = "courseId";
@@ -596,6 +597,7 @@ public final class JsonKey {
   public static final String SUNBIRD_REDIS_SCAN_INTERVAL = "sunbird_redis_scan_interval";
   public static final String ES_COURSE_INDEX = "es_course_index";
   public static final String ES_COURSE_BATCH_INDEX = "es_course_batch_index";
+  public static final String ES_ACTIVITY_BATCH_INDEX = "es_activity_batch_index";
   public static final String ES_USER_INDEX = "es_user_index";
   public static final String ES_ORGANISATION_INDEX = "es_organisation_index";
   public static final String ES_USER_COURSES_INDEX = "es_user_courses_index";

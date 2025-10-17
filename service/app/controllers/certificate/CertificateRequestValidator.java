@@ -132,6 +132,78 @@ public class CertificateRequestValidator extends BaseRequestValidator {
         JsonKey.IDENTIFIER);
   }
 
+  public void validateAddActivityBatchCertificateRequest(Request certRequestDto) {
+    Map<String, Object> batch =
+        (Map<String, Object>) certRequestDto.getRequest().get(JsonKey.BATCH);
+    validateParam(
+        (String) batch.get(JsonKey.ACTIVITYID),
+        ResponseCode.mandatoryParamsMissing,
+        JsonKey.ACTIVITYID);
+    validateParam(
+        (String) batch.get(JsonKey.BATCH_ID),
+        ResponseCode.mandatoryParamsMissing,
+        JsonKey.BATCH_ID);
+    if (!batch.containsKey(CourseJsonKey.TEMPLATE)) {
+      throw new ProjectCommonException(
+          ResponseCode.mandatoryParamsMissing.getErrorCode(),
+          MessageFormat.format(
+              ResponseCode.mandatoryParamsMissing.getErrorMessage(), CourseJsonKey.TEMPLATE),
+          ResponseCode.CLIENT_ERROR.getResponseCode());
+    }
+    if (!(batch.get(CourseJsonKey.TEMPLATE) instanceof Map)) {
+      throw new ProjectCommonException(
+          ResponseCode.dataTypeError.getErrorCode(),
+          MessageFormat.format(
+              ResponseCode.dataTypeError.getErrorMessage(), CourseJsonKey.TEMPLATE, "Map"),
+          ResponseCode.CLIENT_ERROR.getResponseCode());
+    }
+    Map<String, Object> template = (Map<String, Object>) batch.get(CourseJsonKey.TEMPLATE);
+    validateParam(
+        (String) template.get(JsonKey.IDENTIFIER),
+        ResponseCode.mandatoryParamsMissing,
+        JsonKey.IDENTIFIER);
+    validateTemplateCriteria(template);
+    if (template.containsKey(CourseJsonKey.ISSUER)
+        && !(template.get(CourseJsonKey.ISSUER) instanceof Map)) {
+      throw new ProjectCommonException(
+          ResponseCode.dataTypeError.getErrorCode(),
+          MessageFormat.format(
+              ResponseCode.dataTypeError.getErrorMessage(), CourseJsonKey.ISSUER, "Map"),
+          ResponseCode.CLIENT_ERROR.getResponseCode());
+    }
+    if (template.containsKey(CourseJsonKey.SIGNATORY_LIST)
+        && !(template.get(CourseJsonKey.SIGNATORY_LIST) instanceof List)) {
+      throw new ProjectCommonException(
+          ResponseCode.dataTypeError.getErrorCode(),
+          MessageFormat.format(
+              ResponseCode.dataTypeError.getErrorMessage(), CourseJsonKey.SIGNATORY_LIST, "List"),
+          ResponseCode.CLIENT_ERROR.getResponseCode());
+    }
+    if (template.containsKey(CourseJsonKey.SIGNATORY_LIST)) {
+      List<Object> signatoryList = (List<Object>) template.get(CourseJsonKey.SIGNATORY_LIST);
+      signatoryList.forEach(signatory->{
+        Map<String, String> data = (Map<String, String>) signatory;
+        if(MapUtils.isNotEmpty(data)){
+          CourseJsonKey.SIGNATORY_LIST_ATTRIBUTES.forEach(attr->{
+            if (StringUtils.isBlank(data.get(attr))){
+              ProjectCommonException.throwClientErrorException(
+                      ResponseCode.invalidData,
+                      "Signatory list missing attribute" );
+            }
+          });
+        }
+      });
+    }
+    if (template.containsKey(CourseJsonKey.ADDITIONAL_PROPS)
+        && !(template.get(CourseJsonKey.ADDITIONAL_PROPS) instanceof Map)) {
+      throw new ProjectCommonException(
+          ResponseCode.dataTypeError.getErrorCode(),
+          MessageFormat.format(
+              ResponseCode.dataTypeError.getErrorMessage(), CourseJsonKey.ADDITIONAL_PROPS, "Map"),
+          ResponseCode.CLIENT_ERROR.getResponseCode());
+    }
+  }
+
   public void validateTemplateCriteria(Map<String, Object> template) {
     if (!template.containsKey(JsonKey.CRITERIA)) {
       throw new ProjectCommonException(

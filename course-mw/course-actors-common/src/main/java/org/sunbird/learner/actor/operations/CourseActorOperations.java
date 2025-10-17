@@ -3,7 +3,8 @@ package org.sunbird.learner.actor.operations;
 public enum CourseActorOperations {
   ISSUE_CERTIFICATE("issueCertificate"),
   ADD_BATCH_CERTIFICATE("addCertificateToCourseBatch"),
-  DELETE_BATCH_CERTIFICATE("removeCertificateFromCourseBatch");
+  DELETE_BATCH_CERTIFICATE("removeCertificateFromCourseBatch"),
+  ADD_ACTIVITY_BATCH_CERTIFICATE("addCertificateToActivityBatch");
 
   private String value;
 

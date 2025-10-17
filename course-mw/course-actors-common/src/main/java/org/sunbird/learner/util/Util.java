@@ -60,6 +60,7 @@ public final class Util {
         JsonKey.BULK_OP_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SUNBIRD_COURSE_KEYSPACE), TableNameUtil.BULK_UPLOAD_PROCESS_TABLENAME));
     dbInfoMap.put(JsonKey.COURSE_BATCH_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SUNBIRD_COURSE_KEYSPACE), TableNameUtil.COURSE_BATCH_TABLENAME));
       dbInfoMap.put(JsonKey.ACTIVITY_BATCH_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SB_COLLECTION_TRACKING_KEYSPACE), TableNameUtil.ACTIVITY_BATCH_TABLENAME));
+      dbInfoMap.put(JsonKey.ACTIVITY_ENROLMENTS_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SB_COLLECTION_TRACKING_KEYSPACE), TableNameUtil.USER_ENROLLMENTS_TABLENAME));
     dbInfoMap.put(JsonKey.CLIENT_INFO_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SUNBIRD_KEYSPACE), TableNameUtil.CLIENT_INFO_TABLENAME));
     dbInfoMap.put(JsonKey.USER_AUTH_DB, getDbInfoObject(ProjectUtil.getConfigValue(JsonKey.SUNBIRD_KEYSPACE), TableNameUtil.USER_AUTH_TABLENAME));
     dbInfoMap.put(

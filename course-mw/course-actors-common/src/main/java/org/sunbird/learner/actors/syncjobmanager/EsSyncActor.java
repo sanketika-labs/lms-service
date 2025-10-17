@@ -15,7 +15,6 @@ import org.sunbird.common.inf.ElasticSearchService;
 import org.sunbird.common.models.response.Response;
 import org.sunbird.common.models.util.ActorOperations;
 import org.sunbird.common.models.util.JsonKey;
-import org.sunbird.common.models.util.LoggerUtil;
 import org.sunbird.common.models.util.ProjectUtil;
 import org.sunbird.common.request.Request;
 import org.sunbird.common.request.RequestContext;
@@ -52,6 +51,7 @@ public class EsSyncActor extends BaseActor {
   }
 
   private void triggerSync(Request req) {
+    @SuppressWarnings("unchecked")
     Map<String, Object> dataMap = (Map<String, Object>) req.get(JsonKey.DATA);
     String objectType = (String) dataMap.get(JsonKey.OBJECT_TYPE);
     logger.info(req.getRequestContext(), "EsSyncBackgroundActor: sync called for objectType=" + objectType);
@@ -68,7 +68,9 @@ public class EsSyncActor extends BaseActor {
 
     List<Object> objectIds = new ArrayList<>();
     if (null != dataMap.get(JsonKey.OBJECT_IDS)) {
-      objectIds = (List<Object>) dataMap.get(JsonKey.OBJECT_IDS);
+      @SuppressWarnings("unchecked")
+      List<Object> tempObjectIds = (List<Object>) dataMap.get(JsonKey.OBJECT_IDS);
+      objectIds = tempObjectIds;
     }
     if (CollectionUtils.isEmpty(objectIds)) {
       logger.info(req.getRequestContext(), "EsSyncBackgroundActor:sync: Sync all data for type = " + objectType);
@@ -78,10 +80,16 @@ public class EsSyncActor extends BaseActor {
       return;
     }
 
-    final String partitionKey =
-        objectType.equals(JsonKey.USER_COURSE)
-            ? JsonKey.BATCH_ID
-            : (objectType.equals(JsonKey.BATCH) ? JsonKey.COURSE_ID : null);
+    final String partitionKey;
+    if (objectType.equals(JsonKey.USER_COURSE)) {
+      partitionKey = JsonKey.BATCH_ID;
+    } else if (objectType.equals(JsonKey.BATCH)) {
+      partitionKey = JsonKey.COURSE_ID;
+    } else if (objectType.equals("activityBatch")) {
+      partitionKey = JsonKey.ACTIVITYID;
+    } else {
+      partitionKey = null;
+    }
 
     String requestLogMsg =
         MessageFormat.format(
@@ -95,7 +103,9 @@ public class EsSyncActor extends BaseActor {
       if (objectId instanceof String) {
         partitionKeys.add((String) objectId);
       } else if (objectId instanceof Map) {
-        idFilters.add((Map<String, Object>) objectId);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> idMap = (Map<String, Object>) objectId;
+        idFilters.add(idMap);
       }
     }
 
@@ -125,6 +135,8 @@ public class EsSyncActor extends BaseActor {
       type = ProjectUtil.EsType.courseBatch.getTypeName();
     } else if (objectType.equals(JsonKey.USER_COURSE)) {
       type = ProjectUtil.EsType.usercourses.getTypeName();
+    } else if (objectType.equals("activityBatch")) {
+      type = ProjectUtil.EsType.activityBatch.getTypeName();
     }
     return type;
   }
@@ -135,6 +147,8 @@ public class EsSyncActor extends BaseActor {
       return Util.dbInfoMap.get(JsonKey.COURSE_BATCH_DB);
     } else if (objectType.equals(JsonKey.USER_COURSE)) {
       return Util.dbInfoMap.get(JsonKey.LEARNER_COURSE_DB);
+    } else if (objectType.equals("activityBatch")) {
+      return Util.dbInfoMap.get(JsonKey.ACTIVITY_BATCH_DB);
     }
 
     return null;
@@ -200,6 +214,8 @@ public class EsSyncActor extends BaseActor {
           UserCoursesService.generateUserCourseESId(
               (String) rowMap.get(JsonKey.BATCH_ID), (String) rowMap.get(JsonKey.USER_ID));
     } else if (objectType.equals(JsonKey.BATCH)) {
+      id = (String) rowMap.get(JsonKey.BATCH_ID);
+    } else if (objectType.equals("activityBatch")) {
       id = (String) rowMap.get(JsonKey.BATCH_ID);
     }
     rowMap.put(JsonKey.ID, id);

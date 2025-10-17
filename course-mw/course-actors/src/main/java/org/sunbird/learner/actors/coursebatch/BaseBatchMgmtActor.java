@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,10 +105,31 @@ public abstract class BaseBatchMgmtActor extends BaseActor {
         data.put("endDate", courseBatch.getOrDefault(JsonKey.END_DATE, null));
         data.put("enrollmentType", courseBatch.getOrDefault(JsonKey.ENROLLMENT_TYPE, ""));
         data.put("status", courseBatch.getOrDefault(JsonKey.STATUS, ""));
-        data.put("enrollmentEndDate", getEnrollmentEndDate((String) courseBatch.getOrDefault(JsonKey.ENROLLMENT_END_DATE, null), (String) courseBatch.getOrDefault(JsonKey.END_DATE, null)));
+        data.put("enrollmentEndDate", getEnrollmentEndDate(convertDateToString(courseBatch.getOrDefault(JsonKey.ENROLLMENT_END_DATE, null)), convertDateToString(courseBatch.getOrDefault(JsonKey.END_DATE, null))));
         batches.removeIf(map -> StringUtils.equalsIgnoreCase((String) courseBatch.getOrDefault(JsonKey.BATCH_ID, ""), (String) map.get("batchId")));
         batches.add(data);
         ContentUtil.updateCollection(requestContext, (String) courseBatch.getOrDefault(JsonKey.COURSE_ID, ""), new HashMap<String, Object>() {{ put("batches", batches);}});
+    }
+
+    /**
+     * Helper method to convert Date objects to String format.
+     *
+     * @param dateObj The date object to convert (can be Date, String, or null)
+     * @return The date as a string in the expected format, or null if input is null
+     */
+    private String convertDateToString(Object dateObj) {
+        if (dateObj == null) {
+            return null;
+        }
+        if (dateObj instanceof String) {
+            return (String) dateObj;
+        }
+        if (dateObj instanceof Date) {
+            SimpleDateFormat dateFormatter = ProjectUtil.getDateFormatter(dateFormat);
+            dateFormatter.setTimeZone(TimeZone.getTimeZone(timeZone));
+            return dateFormatter.format((Date) dateObj);
+        }
+        return null;
     }
 
     /**

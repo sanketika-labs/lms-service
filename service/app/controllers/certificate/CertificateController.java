@@ -24,6 +24,10 @@ public class CertificateController extends BaseController {
   @Named("certificate-actor")
   private ActorRef certificateActorRef;
 
+  @Inject
+  @Named("activity-batch-certificate-actor")
+  private ActorRef activityBatchCertificateActorRef;
+
   public CompletionStage<Result> issueCertificate(Http.Request httpRequest) {
     return handleRequest(
         certificateActorRef,
@@ -63,6 +67,20 @@ public class CertificateController extends BaseController {
         (request) -> {
           Request req = (Request) request;
           new CertificateRequestValidator().validateDeleteCertificateRequest(req);
+          return null;
+        },
+        getAllRequestHeaders(httpRequest),
+        httpRequest);
+  }
+
+  public CompletionStage<Result> addActivityBatchCertificate(Http.Request httpRequest) {
+    return handleRequest(
+        activityBatchCertificateActorRef,
+        CourseActorOperations.ADD_ACTIVITY_BATCH_CERTIFICATE.getValue(),
+        httpRequest.body().asJson(),
+        (request) -> {
+          Request req = (Request) request;
+          new CertificateRequestValidator().validateAddActivityBatchCertificateRequest(req);
           return null;
         },
         getAllRequestHeaders(httpRequest),
